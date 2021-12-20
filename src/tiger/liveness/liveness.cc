@@ -55,7 +55,7 @@ MoveList *MoveList::Diff(MoveList *list) {
 }
 
 MoveList *LiveGraphFactory::getMoveList(INodePtr node) {
-  return live_graph_.moveList->Look(node);
+  return live_graph_.move_list->Look(node);
 }
 
 void LiveGraphFactory::init() {
@@ -124,12 +124,12 @@ INodePtr LiveGraphFactory::getNode(temp::Temp *temp) {
   return node;
 }
 
-void LiveGraphFactory::addMoveList(MvList *moveList, INodePtr node,
+void LiveGraphFactory::addMoveList(MvList *move_list, INodePtr node,
                                    INodePtr src, INodePtr dst) {
-  auto mine = moveList->Look(node);
+  auto mine = move_list->Look(node);
   if (mine == nullptr) {
     mine = new MoveList();
-    moveList->Enter(node, mine);
+    move_list->Enter(node, mine);
   }
   if (!mine->Contain(src, dst))
     mine->Append(src, dst);
@@ -140,7 +140,7 @@ void LiveGraphFactory::InterfGraph() {
   std::cout << "LiveGraphFactory::InterfGraph called" << std::endl;
   auto interf_graph = live_graph_.interf_graph;
   auto moves = live_graph_.moves;
-  auto moveList = live_graph_.moveList;
+  auto move_list = live_graph_.move_list;
   auto instrNodes = flowgraph_->Nodes()->GetList();
   auto instr_iter = instrNodes.rbegin();
   for (; instr_iter != instrNodes.rend(); ++instr_iter) {
@@ -163,8 +163,8 @@ void LiveGraphFactory::InterfGraph() {
         auto srcTemp = use->NthTemp(0);
         auto srcNode = getNode(srcTemp);
         moves->Append(srcNode, dstNode);
-        addMoveList(moveList, srcNode, srcNode, dstNode);
-        addMoveList(moveList, dstNode, srcNode, dstNode);
+        addMoveList(move_list, srcNode, srcNode, dstNode);
+        addMoveList(move_list, dstNode, srcNode, dstNode);
       }
       // live = live \ use
       live->Diff(use);

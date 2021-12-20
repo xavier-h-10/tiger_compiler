@@ -51,10 +51,10 @@ private:
 struct LiveGraph {
   IGraphPtr interf_graph;
   MoveList *moves;
-  MvList *moveList;
+  MvList *move_list;
 
-  LiveGraph(IGraphPtr interf_graph, MoveList *moves, MvList *moveList)
-      : interf_graph(interf_graph), moves(moves), moveList(moveList) {}
+  LiveGraph(IGraphPtr interf_graph, MoveList *moves, MvList *move_list)
+      : interf_graph(interf_graph), moves(moves), move_list(move_list) {}
 };
 
 class LiveGraphFactory {

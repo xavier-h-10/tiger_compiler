@@ -100,6 +100,7 @@ public:
   NodeList<T>(std::initializer_list<Node<T> *> node_list_)
       : node_list_(node_list_) {}
 
+  NodeList<T>(Node<T> *n) : node_list_({n}) {}
   // Tell if "a" is in the list
   bool Contain(Node<T> *n);
 

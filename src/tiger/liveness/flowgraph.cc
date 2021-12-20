@@ -2,90 +2,112 @@
 
 namespace fg {
 
-void FlowGraphFactory::AssemFlowGraph() { /* TODO: Put your lab6 code here */
-  std::list<FNodePtr> jump_node;
- int edges=0;
-  auto instrList = instr_list_->GetList();
-  FNodePtr cur = nullptr;
-  FNodePtr prev = nullptr;
-  for (auto instr : instrList) {
-    bool is_jmp = false;
-    cur = flowgraph_->NewNode(instr);
+void FlowGraphFactory::AssemFlowGraph() {
+  /* TODO: Put your lab6 code here */
+  //  std::cout << "FlowGraphFactory::AssemFlowGraph called" << std::endl;
+  //  flowgraph_ = new graph::Graph<assem::Instr>();
+  //  auto label_table = new tab::Table<temp::Label,
+  //  graph::Node<assem::Instr>>(); auto instr_table = new
+  //  tab::Table<assem::Instr, graph::Node<assem::Instr>>();
 
-    // for the case that instr is label
+  int edges = 0;
+
+  std::list<assem::Instr *> instr_list = instr_list_->GetList();
+  graph::Node<assem::Instr> *now = nullptr;
+  graph::Node<assem::Instr> *prev = nullptr;
+  std::vector<graph::Node<assem::Instr> *> jump_nodes;
+
+  // jump单独处理 其余加边
+  for (auto instr : instr_list) {
+    bool is_jmp=false;
+    now = flowgraph_->NewNode(instr);
+
     if (typeid(*instr) == typeid(assem::LabelInstr)) {
-      auto labelInstr = dynamic_cast<assem::LabelInstr *>(instr);
-      auto label = labelInstr->label_;
-      label_map_->Enter(label, cur);
-    } else if (typeid(*instr) == typeid(assem::OperInstr)) {
-      auto operInstr = dynamic_cast<assem::OperInstr *>(instr);
-      // if its a jump instr, then handle it later
-      if (operInstr->jumps_) {
-        jump_node.push_back(cur);
-        is_jmp = operInstr->assem_.find("jmp") != std::string::npos;
+      label_table->Enter(((assem::LabelInstr *)instr)->label_, now);
+    }
+
+    if (typeid(*instr) == typeid(assem::OperInstr)) {
+      auto oper_instr = ((assem::OperInstr *)instr);
+      if (oper_instr->jumps_) {
+        jump_nodes.push_back(now);
+        is_jmp = oper_instr->assem_.find("jmp") != std::string::npos;
       }
     }
 
-    // if there exists the last node, then connect prev to cur.
     if (prev) {
       edges++;
-      flowgraph_->AddEdge(prev, cur);
+      flowgraph_->AddEdge(prev, now);
     }
 
-    // update prev; If current instr is jump, then prev should be null.
-    prev = !is_jmp ? cur : nullptr;
+    if (is_jmp) {
+      prev = nullptr;
+    } else {
+      prev = now;
+    }
   }
 
-  // Then let's deal with those jump_node
-  for (auto jumpNode : jump_node) {
-    auto instr = jumpNode->NodeInfo();
-    auto jmpInstr = dynamic_cast<assem::OperInstr *>(instr);
-    auto label = (*jmpInstr->jumps_->labels_)[0];
-    auto labelNode = label_map_->Look(label);
-    // just link two.
-    // since it will jump from jumpNode to the label Node.
-    flowgraph_->AddEdge(jumpNode, labelNode);
+  for (auto node : jump_nodes) {
+    auto instr = (assem::OperInstr *)(node->NodeInfo());
+    auto label = (*instr->jumps_->labels_)[0];
+    flowgraph_->AddEdge(node, label_table->Look(label));
     edges++;
   }
-  std::cout<<"edges="<<edges<<std::endl;
+
+  //  std::cout << "edges=" << edges << std::endl;
 }
 
 } // namespace fg
 
 namespace assem {
 
-temp::TempList *LabelInstr::Def() const {
-  /* TODO: Put your lab6 code here */
-  return new temp::TempList({});
-}
+temp::TempList *LabelInstr::Def() const { return new temp::TempList(); }
 
 temp::TempList *MoveInstr::Def() const {
-  /* TODO: Put your lab6 code here */
-//  return dst_;
-  auto ret = dst_ != nullptr ? dst_ : new temp::TempList({});
-  return ret;
+  if (dst_) {
+    return dst_;
+  } else {
+    return new temp::TempList();
+  }
 }
 
 temp::TempList *OperInstr::Def() const {
-  /* TODO: Put your lab6 code here */
-  auto ret = dst_ != nullptr ? dst_ : new temp::TempList({});
-  return ret;
+  if (dst_) {
+    return dst_;
+  } else {
+    return new temp::TempList();
+  }
 }
 
-temp::TempList *LabelInstr::Use() const {
-  /* TODO: Put your lab6 code here */
-  return new temp::TempList({});
-}
+temp::TempList *LabelInstr::Use() const { return new temp::TempList(); }
 
 temp::TempList *MoveInstr::Use() const {
-  /* TODO: Put your lab6 code here */
-  auto ret = src_ ? src_ : new temp::TempList({});
-  return ret;
+  if (src_) {
+    return src_;
+  } else {
+    return new temp::TempList();
+  }
 }
 
 temp::TempList *OperInstr::Use() const {
-  /* TODO: Put your lab6 code here */
-  auto ret = src_ ? src_ : new temp::TempList({});
-  return ret;
+  if (src_) {
+    return src_;
+  } else {
+    return new temp::TempList();
+  }
 }
 } // namespace assem
+
+//
+// for (auto instr : instr_list) {
+//  if (typeid(*instr) != typeid(assem::OperInstr))
+//    continue;
+//  assem::OperInstr *oper_instr = (assem::OperInstr *)instr;
+//  if (oper_instr->jumps_ == nullptr)
+//    continue;
+//
+//  std::vector<temp::Label *> labels = *(oper_instr->jumps_->labels_);
+//  for (auto label : labels) {
+//    edges++;
+//    flowgraph_->AddEdge(instr_table->Look(instr), label_table->Look(label));
+//  }
+//}

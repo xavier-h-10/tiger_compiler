@@ -55,13 +55,15 @@ private:
   graph::NodeList<temp::Temp> *initial = new graph::NodeList<temp::Temp>;
   graph::NodeList<temp::Temp> *precolored = new graph::NodeList<temp::Temp>;
   graph::NodeList<temp::Temp> *spill_worklist = new graph::NodeList<temp::Temp>;
-  graph::NodeList<temp::Temp> *freeze_worklist = new graph::NodeList<temp::Temp>;
+  graph::NodeList<temp::Temp> *freeze_worklist =
+      new graph::NodeList<temp::Temp>;
   graph::NodeList<temp::Temp> *simplify_worklist =
       new graph::NodeList<temp::Temp>;
 
   graph::NodeList<temp::Temp> *spilled_nodes = new graph::NodeList<temp::Temp>;
   graph::NodeList<temp::Temp> *colored_nodes = new graph::NodeList<temp::Temp>;
-  graph::NodeList<temp::Temp> *coalesced_nodes = new graph::NodeList<temp::Temp>;
+  graph::NodeList<temp::Temp> *coalesced_nodes =
+      new graph::NodeList<temp::Temp>;
 
   live::MoveList *active_moves = new live::MoveList();
   live::MoveList *coalesced_moves = new live::MoveList();
@@ -72,14 +74,14 @@ private:
 
   live::IGraphPtr interf_graph;
   live::MoveList *worklist_moves;
-  live::MvList *moveList;
+  live::MvList *move_list;
 
   void LivenessAnalysis();
   void Build();
-  void AddEdge(live::INodePtr u, live::INodePtr v);
+  void AddEdge(graph::Node<temp::Temp> *u, graph::Node<temp::Temp> *v);
   void MakeWorkList();
-  live::MoveList *NodeMoves(live::INodePtr node);
-  bool MoveRelated(live::INodePtr node);
+  live::MoveList* NodeMoves(graph::Node<temp::Temp> *n);
+  bool MoveRelated(graph::Node<temp::Temp> *n);
   void Simplify();
   void DecrementDegree(live::INodePtr m);
   void EnableMoves(graph::NodeList<temp::Temp> *nodes);
@@ -87,7 +89,7 @@ private:
   void AddWorkList(live::INodePtr node);
   bool OK(live::INodePtr t, live::INodePtr r);
   bool Conservative(graph::NodeList<temp::Temp> *nodes);
-  live::INodePtr GetAlias(live::INodePtr node);
+  graph::Node<temp::Temp> *GetAlias(graph::Node<temp::Temp> *n);
   bool CoalesceOK(live::INodePtr u, live::INodePtr v);
   void Combine(live::INodePtr u, live::INodePtr v);
   void Freeze();

@@ -6,7 +6,6 @@ extern frame::RegManager *reg_manager;
 
 namespace ra {
 
-
 /* TODO: Put your lab6 code here */
 void RegAllocator::RegAlloc() {
   Color();
@@ -53,12 +52,13 @@ void RegAllocator::Build() {
   alias.clear();
   colors.clear();
   degree.clear();
-  std::list<graph::Node<temp::Temp> *> node_list = interf_graph->Nodes()->GetList();
+  std::list<graph::Node<temp::Temp> *> node_list =
+      interf_graph->Nodes()->GetList();
   for (auto node : node_list) {
     degree[node] = node->OutDegree();
     alias[node] = node;
     auto temp = node->NodeInfo();
-    if (!temp->isBuiltin()) {
+    if (temp->num_ >= 100) {
       initial->Append(node);
     } else {
       precolored->Append(node);
@@ -67,21 +67,34 @@ void RegAllocator::Build() {
   }
 }
 
-void RegAllocator::AddEdge(live::INodePtr u, live::INodePtr v) {
-  if (!u->Succ()->Contain(v) && u != v) {
-    if (!precolored->Contain(u)) {
-      interf_graph->AddEdge(u, v);
-      degree[u]++;
-    }
-    if (!precolored->Contain(v)) {
-      interf_graph->AddEdge(v, u);
-      degree[v]++;
-    }
+// ok
+void RegAllocator::AddEdge(graph::Node<temp::Temp> *u,
+                           graph::Node<temp::Temp> *v) {
+  if (u->Succ()->Contain(v) || v->Succ()->Contain(u) || u == v)
+  {
+    return;
+  }
+  if (!precolored->Contain(u)) {
+    interf_graph->AddEdge(u, v);
+    degree[u]++;
+  }
+  if (!precolored->Contain(v)) {
+    interf_graph->AddEdge(v, u);
+    degree[v]++;
   }
 }
 
-bool RegAllocator::MoveRelated(live::INodePtr node) {
-  return !NodeMoves(node)->Empty();
+live::MoveList *RegAllocator::NodeMoves(graph::Node<temp::Temp> *n)  {
+  auto tmp = move_list->Look(n);
+  if (tmp == nullptr) {
+    tmp=new live::MoveList();
+  }
+  return tmp->Intersect(active_moves->Union(worklist_moves));
+}
+
+//ok
+bool RegAllocator::MoveRelated(graph::Node<temp::Temp> *n) {
+  return !NodeMoves(n)->Empty();
 }
 
 void RegAllocator::MakeWorkList() {
@@ -96,16 +109,6 @@ void RegAllocator::MakeWorkList() {
     }
   }
   initial->Clear();
-}
-
-live::MoveList *RegAllocator::NodeMoves(live::INodePtr node) {
-  live::MoveList *moveList_n = moveList->Look(node);
-  moveList_n = moveList_n ? moveList_n : new live::MoveList();
-  return moveList_n->Intersect(active_moves->Union(worklist_moves));
-}
-
-bool RegAllocator::MoveRelated(live::INodePtr node) {
-  return !NodeMoves(node)->Empty();
 }
 
 void RegAllocator::Simplify() {
@@ -201,8 +204,12 @@ bool RegAllocator::Conservative(graph::NodeList<temp::Temp> *nodes) {
   return k < K;
 }
 
-live::INodePtr RegAllocator::GetAlias(live::INodePtr node) {
-  return coalesced_nodes->Contain(node) ? GetAlias(alias[node]) : node;
+graph::Node<temp::Temp> *RegAllocator::GetAlias(graph::Node<temp::Temp> *n) {
+  if (coalesced_nodes->Contain(n)) {
+    return GetAlias(alias[n]);
+  } else {
+    return n;
+  }
 }
 
 void RegAllocator::Combine(live::INodePtr u, live::INodePtr v) {
@@ -213,7 +220,7 @@ void RegAllocator::Combine(live::INodePtr u, live::INodePtr v) {
   }
   coalesced_nodes->Append(v);
   alias[v] = u;
-  moveList->Set(u, moveList->Look(u)->Union(moveList->Look(v)));
+  move_list->Set(u, move_list->Look(u)->Union(move_list->Look(v)));
   EnableMoves(new graph::NodeList<temp::Temp>({v}));
 
   for (auto t : v->Succ()->GetList()) {
@@ -381,7 +388,7 @@ void RegAllocator::LivenessAnalysis() {
   auto liveGraph = liveGraphFactory->GetLiveGraph();
   interf_graph = liveGraph.interf_graph;
   worklist_moves = liveGraph.moves;
-  moveList = liveGraph.moveList;
+  move_list = liveGraph.move_list;
 }
 
 void RegAllocator::AssignTemps(temp::TempList *temps) {

@@ -27,9 +27,7 @@ class Temp {
 public:
   [[nodiscard]] int Int() const;
 
-  inline bool isBuiltin() const { return num_ < 100; }
-
-private:
+public:
   int num_;
   explicit Temp(int num) : num_(num) {}
 };
