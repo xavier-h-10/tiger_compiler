@@ -158,7 +158,7 @@ void RegAllocator::EnableMoves(graph::NodeList<temp::Temp> *nodes) {
   }
 }
 
-//ok
+// ok
 void RegAllocator::Coalesce() {
   auto m = worklist_moves->Pop();
   graph::Node<temp::Temp> *x, *y, *u, *v;
@@ -193,26 +193,31 @@ void RegAllocator::Coalesce() {
   }
 }
 
-void RegAllocator::AddWorkList(live::INodePtr node) {
-  if (!precolored->Contain(node) && !MoveRelated(node) && degree[node] < K) {
-    freeze_worklist->DeleteNode(node);
-    simplify_worklist->Append(node);
+// ok
+void RegAllocator::AddWorkList(graph::Node<temp::Temp> *u) {
+  if (!precolored->Contain(u) && !MoveRelated(u) && degree[u] < K) {
+    freeze_worklist->DeleteNode(u);
+    simplify_worklist->Append(u);
   }
 }
 
-bool RegAllocator::OK(live::INodePtr t, live::INodePtr r) {
-  return degree[t] < K || precolored->Contain(t) || r->Succ()->Contain(t);
+// ok
+bool RegAllocator::OK(graph::Node<temp::Temp> *t, graph::Node<temp::Temp> *r) {
+  return (degree[t] < K || precolored->Contain(t) || r->Succ()->Contain(t));
 }
 
+// ok
 bool RegAllocator::Conservative(graph::NodeList<temp::Temp> *nodes) {
   int k = 0;
-  for (auto n : nodes->GetList()) {
+  auto node_list = nodes->GetList();
+  for (auto n : node_list) {
     if (degree[n] >= k)
-      ++k;
+      k++;
   }
   return k < K;
 }
 
+// ok
 graph::Node<temp::Temp> *RegAllocator::GetAlias(graph::Node<temp::Temp> *n) {
   if (coalesced_nodes->Contain(n)) {
     return GetAlias(alias[n]);
@@ -221,6 +226,7 @@ graph::Node<temp::Temp> *RegAllocator::GetAlias(graph::Node<temp::Temp> *n) {
   }
 }
 
+//ok
 void RegAllocator::Combine(live::INodePtr u, live::INodePtr v) {
   if (freeze_worklist->Contain(v)) {
     freeze_worklist->DeleteNode(v);
@@ -232,9 +238,10 @@ void RegAllocator::Combine(live::INodePtr u, live::INodePtr v) {
   move_list->Set(u, move_list->Look(u)->Union(move_list->Look(v)));
   EnableMoves(new graph::NodeList<temp::Temp>({v}));
 
-  for (auto t : v->Succ()->GetList()) {
-    AddEdge(t, u);
-    DecrementDegree(t);
+//  auto node_list = v->Succ()->GetList();
+  for (auto node : v->Succ()->GetList()) {
+    AddEdge(node, u);
+    DecrementDegree(node);
   }
 
   if (degree[u] >= K && freeze_worklist->Contain(u)) {
@@ -243,13 +250,14 @@ void RegAllocator::Combine(live::INodePtr u, live::INodePtr v) {
   }
 }
 
+//ok
 void RegAllocator::Freeze() {
   auto u = freeze_worklist->Pop();
   simplify_worklist->Append(u);
   FreezeMoves(u);
 }
 
-void RegAllocator::FreezeMoves(live::INodePtr u) {
+void RegAllocator::FreezeMoves(graph::Node<temp::Temp> *u) {
   for (auto m : NodeMoves(u)->GetList()) {
     live::INodePtr v;
     auto x = m.first;
