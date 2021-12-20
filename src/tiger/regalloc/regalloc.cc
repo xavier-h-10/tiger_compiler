@@ -8,22 +8,18 @@ extern frame::RegManager *reg_manager;
 
 namespace ra {
 
-/* TODO: Put your lab6 code here */
 void RegAllocator::RegAlloc() {
+  std::cout << "RegAllocator::RegAlloc called" << std::endl;
   Color();
   AssignRegisters();
 }
 
 void RegAllocator::Color() {
-  bool done;
-  int x = 0;
-  std::cout << "Called" << std::endl;
-  do {
-    done = true;
+  while (true) {
     LivenessAnalysis();
     Build();
     MakeWorkList();
-    do {
+    while (true) {
       if (!simplify_worklist->Empty()) {
         Simplify();
       } else if (!worklist_moves->Empty()) {
@@ -33,19 +29,37 @@ void RegAllocator::Color() {
       } else if (!spill_worklist->Empty()) {
         SelectSpill();
       }
-    } while (!(simplify_worklist->Empty() && worklist_moves->Empty() &&
-               freeze_worklist->Empty() && spill_worklist->Empty()));
+      if (simplify_worklist->Empty() && worklist_moves->Empty() &&
+          freeze_worklist->Empty() && spill_worklist->Empty()) {
+        break;
+      }
+    }
     AssignColors();
     if (!spilled_nodes->Empty()) {
       RewriteProgram();
-      done = false;
+    } else {
+      break;
     }
-    ++x;
-    std::cout << "Finished " << x << std::endl;
-    //  } while (0);
-  } while (!done);
+    std::cout << "Color: finish one time" << std::endl;
+  }
 
-  std::cout << "Finished All\n\n";
+  std::cout << "Color: finish!" << std::endl;
+}
+
+//ok
+void RegAllocator::LivenessAnalysis() {
+  auto fg_factory =
+      new fg::FlowGraphFactory(assem_instr_.get()->GetInstrList());
+  fg_factory->AssemFlowGraph();
+  auto fg = fg_factory->GetFlowGraph();
+
+  auto lg_factory = new live::LiveGraphFactory(fg);
+  lg_factory->Liveness();
+  auto live_graph = lg_factory->GetLiveGraph();
+
+  worklist_moves = live_graph.moves;
+  move_list = live_graph.move_list;
+  interf_graph = live_graph.interf_graph;
 }
 
 void RegAllocator::Build() {
@@ -325,7 +339,6 @@ void RegAllocator::AssignColors() {
     if (precolored->Contain(n)) {
       continue;
     }
-
     // rsp, rbp最好不要用
     std::set<int> ok_colors;
     int rsp = reg_manager->StackPointer()->Int();
@@ -335,13 +348,11 @@ void RegAllocator::AssignColors() {
     }
 
     auto node_list = n->Succ()->GetList();
-
     for (auto w : n->Succ()->GetList()) {
       if (colors.find(GetAlias(w)->NodeInfo()) != colors.end()) {
         ok_colors.erase(colors[GetAlias(w)->NodeInfo()]);
       }
     }
-
     if (ok_colors.empty()) {
       spilled_nodes->Append(n);
     } else {
@@ -350,6 +361,7 @@ void RegAllocator::AssignColors() {
       colors[n->NodeInfo()] = c;
     }
   }
+
   auto coalesced_list = coalesced_nodes->GetList();
   for (auto n : coalesced_list) {
     colors[n->NodeInfo()] = colors[GetAlias(n)->NodeInfo()];
@@ -359,7 +371,7 @@ void RegAllocator::AssignColors() {
 void RegAllocator::RewriteProgram() {
   graph::NodeList<temp::Temp> *newTemps = new graph::NodeList<temp::Temp>;
   already_spill->Clear();
-  auto il = assemInstr->GetInstrList();
+  auto il = assem_instr_->GetInstrList();
   char buf[256];
   const int wordSize = reg_manager->WordSize();
   for (auto v : spilled_nodes->GetList()) {
@@ -410,19 +422,6 @@ void RegAllocator::RewriteProgram() {
   coalesced_nodes->Clear();
 }
 
-void RegAllocator::LivenessAnalysis() {
-  auto il = assemInstr.get()->GetInstrList();
-  fg::FlowGraphFactory flowGraphFactory(il);
-  flowGraphFactory.AssemFlowGraph();
-  auto flowGraph = flowGraphFactory.GetFlowGraph();
-  liveGraphFactory = new live::LiveGraphFactory(flowGraph);
-  liveGraphFactory->Liveness();
-  auto liveGraph = liveGraphFactory->GetLiveGraph();
-  interf_graph = liveGraph.interf_graph;
-  worklist_moves = liveGraph.moves;
-  move_list = liveGraph.move_list;
-}
-
 void RegAllocator::AssignTemps(temp::TempList *temps) {
   if (!temps)
     return;
@@ -434,8 +433,9 @@ void RegAllocator::AssignTemps(temp::TempList *temps) {
   }
 }
 
+// ok
+// p175 去除src和dst相同的情况
 bool RegAllocator::SameMove(temp::TempList *src, temp::TempList *dst) {
-  static auto map = temp::Map::Name();
   if (src && dst) {
     return colors[src->GetList().front()] == colors[dst->GetList().front()];
   }
@@ -443,8 +443,7 @@ bool RegAllocator::SameMove(temp::TempList *src, temp::TempList *dst) {
 }
 
 void RegAllocator::AssignRegisters() {
-  auto il = assemInstr.get()->GetInstrList();
-  //  /// TODO: something wrong with it.
+  auto il = assem_instr_.get()->GetInstrList();
   auto &instrList = il->GetList();
   auto iter = instrList.begin();
   char framesize_buf[256];

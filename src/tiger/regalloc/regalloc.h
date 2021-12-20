@@ -31,8 +31,8 @@ public:
 class RegAllocator {
   /* TODO: Put your lab6 code here */
 public:
-  RegAllocator(frame::Frame *frame, std::unique_ptr<cg::AssemInstr> assemInstr)
-      : frame(frame), assemInstr(std::move(assemInstr)),
+  RegAllocator(frame::Frame *frame, std::unique_ptr<cg::AssemInstr> assem_instr_)
+      : frame(frame), assem_instr_(std::move(assem_instr_)),
         result(std::make_unique<Result>()) {
     initial = new graph::NodeList<temp::Temp>();
     precolored = new graph::NodeList<temp::Temp>();
@@ -59,9 +59,10 @@ public:
 
 private:
   frame::Frame *frame;
-  std::unique_ptr<cg::AssemInstr> assemInstr;
 
-  live::LiveGraphFactory *liveGraphFactory;
+  std::unique_ptr<cg::AssemInstr> assem_instr_;
+
+  live::LiveGraphFactory *lg_factory;
   std::unique_ptr<Result> result;
 
   std::map<temp::Temp *, int> colors;
