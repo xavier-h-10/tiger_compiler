@@ -54,77 +54,85 @@ MoveList *MoveList::Diff(MoveList *list) {
   return res;
 }
 
-MoveList *LiveGraphFactory::getMoveList(INodePtr node) {
-  return live_graph_.move_list->Look(node);
-}
-
-void LiveGraphFactory::init() {
-  auto instrNodes = flowgraph_->Nodes()->GetList();
-  for (auto instrNode : instrNodes) {
-    in_->Enter(instrNode, new temp::TempList({}));
-    out_->Enter(instrNode, new temp::TempList({}));
-  }
-}
-
 void LiveGraphFactory::LiveMap() {
   std::cout << "LiveGraphFactory::LiveMap called" << std::endl;
-  bool no_change = false;
-  init();
-  auto instrNodes = flowgraph_->Nodes()->GetList();
-//  std::cout<<"instr size="<<instrNodes.size()<<std::endl;
-  while (!no_change) {
-    auto iter = instrNodes.rbegin();
-    for (; iter != instrNodes.rend(); ++iter) {
-      auto instrNode = *iter;
-      
-      int before_out_size, before_in_size, after_out_size, after_in_size;
-      // out[i] = out[i] \cup in[s]
-      auto succ = instrNode->Succ()->GetList();
-      auto my_out = out_->Look(instrNode);
-      before_out_size = my_out->Size();
-      for (auto succNode : succ) {
-        auto succ_in = in_->Look(succNode);
-        my_out->Union(succ_in);
+
+  //  in.clear();
+  //  out.clear();
+
+  std::list<graph::Node<assem::Instr> *> node_list =
+      flowgraph_->Nodes()->GetList();
+  std::cout << "node_list size:" << node_list.size() << std::endl;
+
+  for (auto node : node_list) {
+    in[node] = new temp::TempList();
+    out[node] = new temp::TempList();
+  }
+
+  while (true) {
+    //    std::map<graph::Node<assem::Instr> *, temp::TempList *> old_in = in;
+    //    std::map<graph::Node<assem::Instr> *, temp::TempList *> old_out = out;
+    int old_in_size, old_out_size, in_size, out_size;
+    auto it = node_list.rbegin();
+    bool equal = true;
+
+    for (; it != node_list.rend(); it++) {
+      auto node = *it;
+      auto defs = node->NodeInfo()->Def();
+      auto uses = node->NodeInfo()->Use();
+      int old_in_size = in[node]->Size();
+      int old_out_size = out[node]->Size();
+
+      //      out[node] = new temp::TempList();
+      auto succ_list = node->Succ()->GetList();
+      for (auto succ_node : succ_list) {
+        out[node] = Union(out[node], in[succ_node]);
       }
-      after_out_size = my_out->Size();
 
-      // in[i] = use[i] \cup (out[i] - def[i])
-      auto my_in = in_->Look(instrNode);
-      before_in_size = my_in->Size();
+      in[node] = Union(uses, Diff(out[node], defs));
 
-      auto uses = instrNode->NodeInfo()->Use();
-      auto defs = instrNode->NodeInfo()->Def();
-      auto diff = temp::TempList::Diff(my_out, defs);
-      diff->Union(uses);
-      my_in->Assign(diff);
-      after_in_size = my_in->Size();
-      delete diff;
+      int in_size = in[node]->Size();
+      int out_size = out[node]->Size();
 
-      std::cout << "before:" << before_in_size << " " << before_out_size
-                << std::endl;
-      std::cout << "after:" << after_in_size << " " << after_out_size
-                << std::endl;
-
-      no_change =
-          after_out_size == before_out_size && after_in_size == before_in_size;
-
-      assert(after_out_size >= before_out_size &&
-             after_in_size >= before_in_size);
+      std::cout << "before:" << old_in_size << " " << old_out_size << std::endl;
+      std::cout << "after:" << in_size << " " << out_size << std::endl;
+      if (old_in_size != in_size || old_out_size != out_size) {
+        equal = false;
+      }
+    };
+    if (equal) {
+      break;
     }
   }
+
+  //  std::list<temp::Temp *> reg_list = reg_manager->Registers()->GetList();
+  //  for (auto reg_1 : reg_list) {
+  //    for (auto reg_2 : reg_list) {
+  //      if (reg_1 == reg_2) {
+  //        continue;
+  //      }
+  //      auto node_1 = GetNode(live_graph_.interf_graph, reg_1);
+  //      auto node_2 = GetNode(live_graph_.interf_graph, reg_2);
+  //      if (node_1 != node_2) {
+  //        graph::Graph<temp::Temp>::AddEdge(node_1, node_2);
+  //        graph::Graph<temp::Temp>::AddEdge(node_2, node_1);
+  //      }
+  //    }
+  //  }
 }
 
 INodePtr LiveGraphFactory::GetNode(temp::Temp *temp) {
-  INodePtr node;
-  if ((node = temp_node_map_->Look(temp)) == nullptr) {
-    node = live_graph_.interf_graph->NewNode(temp);
-    temp_node_map_->Enter(temp, node);
+  if (temp_node_map_.find(temp) != temp_node_map_.end()) {
+    return temp_node_map_[temp];
   }
+  auto node = live_graph_.interf_graph->NewNode(temp);
+  temp_node_map_[temp] = node;
   return node;
 }
 
-void LiveGraphFactory::AddMoveList(graph::Table<temp::Temp, MoveList> *move_list, INodePtr node,
-                                   INodePtr src, INodePtr dst) {
+void LiveGraphFactory::AddMoveList(
+    graph::Table<temp::Temp, MoveList> *move_list, INodePtr node, INodePtr src,
+    INodePtr dst) {
   auto mine = move_list->Look(node);
   if (mine == nullptr) {
     mine = new MoveList();
@@ -144,30 +152,28 @@ void LiveGraphFactory::InterfGraph() {
   for (; instr_iter != instrNodes.rend(); ++instr_iter) {
     auto instrNode = *instr_iter;
     auto instr = instrNode->NodeInfo();
-    auto def = instr->Def();
-    auto use = instr->Use();
-    auto live = out_->Look(instrNode);
+    std::list<temp::Temp *> defs = instr->Def()->GetList();
+    std::list<temp::Temp *> uses = instr->Use()->GetList();
+    auto live = out[instrNode];
     auto orgLive = new temp::TempList({});
     orgLive->Assign(live);
 
     if (typeid(*instr) == typeid(assem::MoveInstr)) {
-      auto dstTemp = def->NthTemp(0);
-      auto dstNode = GetNode(dstTemp);
-      if (!use->Empty()) {
-        auto srcTemp = use->NthTemp(0);
-        auto srcNode = GetNode(srcTemp);
+      auto dstNode = GetNode(*(defs.begin()));
+      if (!uses.empty()) {
+        auto srcNode = GetNode(*(uses.begin()));
         moves->Append(srcNode, dstNode);
         AddMoveList(move_list, srcNode, srcNode, dstNode);
         AddMoveList(move_list, dstNode, srcNode, dstNode);
       }
       // live = live \ use
-      live->Diff(use);
+      live->Diff(instr->Use());
     }
 
     // live = live U def
-    live->Union(def);
+    live->Union(instr->Def());
 
-    for (auto defTemp : def->GetList()) {
+    for (auto defTemp : defs) {
       auto defNode = GetNode(defTemp);
       for (auto liveTemp : live->GetList()) {
         auto liveNode = GetNode(liveTemp);
@@ -181,9 +187,96 @@ void LiveGraphFactory::InterfGraph() {
   }
 }
 
+MoveList *LiveGraphFactory::getMoveList(INodePtr node) {
+  return live_graph_.move_list->Look(node);
+}
+
 void LiveGraphFactory::Liveness() {
   LiveMap();
   InterfGraph();
+}
+
+temp::TempList *LiveGraphFactory::Union(temp::TempList *a, temp::TempList *b) {
+  if (a == nullptr && b == nullptr)
+    return new temp::TempList();
+  if (a == nullptr)
+    return b;
+  if (b == nullptr)
+    return a;
+  std::list<temp::Temp *> a_list = a->GetList();
+  std::list<temp::Temp *> b_list = b->GetList();
+  auto res_list = a_list;
+  for (auto b_tmp : b_list) {
+    auto pos = std::find(res_list.begin(), res_list.end(), b_tmp);
+    if (pos == res_list.end()) {
+      res_list.push_back(b_tmp);
+    }
+  }
+  return new temp::TempList(res_list);
+}
+
+temp::TempList *LiveGraphFactory::Diff(temp::TempList *a, temp::TempList *b) {
+  if (a == nullptr)
+    return new temp::TempList();
+  if (b == nullptr)
+    return a;
+  std::list<temp::Temp *> a_list = a->GetList();
+  std::list<temp::Temp *> b_list = b->GetList();
+  auto res_list = a_list;
+  for (auto b_tmp : b_list) {
+    auto pos = std::find(res_list.begin(), res_list.end(), b_tmp);
+    if (pos != res_list.end()) {
+      res_list.erase(pos);
+    }
+  }
+  return new temp::TempList(res_list);
+}
+
+bool LiveGraphFactory::Equal(temp::TempList *a, temp::TempList *b) {
+  if (a == nullptr && b == nullptr)
+    return true;
+  if (a == nullptr || b == nullptr)
+    return false;
+  std::list<temp::Temp *> a_list = a->GetList();
+  std::list<temp::Temp *> b_list = b->GetList();
+  if (a_list.size() != b_list.size()) {
+    return false;
+  }
+  for (auto a_tmp : a_list) {
+    bool find = false;
+    for (auto b_tmp : b_list) {
+      if (a_tmp == b_tmp) {
+        find = true;
+        break;
+      }
+    }
+    if (!find) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool LiveGraphFactory::Equal(IMap a, IMap b) {
+  if (a.size() != b.size()) {
+    return false;
+  }
+  for (auto it = a.begin(); it != a.end(); it++) {
+    auto key = it->first;
+    auto val = it->second;
+    if (b.find(key) == b.end()) {
+      return false;
+    }
+
+    auto a_list = val->GetList();
+    auto b_list = b[key]->GetList();
+    for (auto temp : a_list) {
+      if (std::find(b_list.begin(), b_list.end(), temp) == b_list.end()) {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 } // namespace live

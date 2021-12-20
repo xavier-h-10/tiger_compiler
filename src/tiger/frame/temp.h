@@ -66,6 +66,7 @@ class TempList {
 public:
   explicit TempList(Temp *t) : temp_list_({t}) {}
   TempList(std::initializer_list<Temp *> list) : temp_list_(list) {}
+  TempList(std::list<Temp *> list) : temp_list_(list) {}
   TempList() = default;
 
   inline int Size() { return temp_list_.size(); }

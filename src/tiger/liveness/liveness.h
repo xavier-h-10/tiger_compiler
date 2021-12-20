@@ -67,22 +67,18 @@ public:
   explicit LiveGraphFactory(fg::FGraphPtr flowgraph)
       : flowgraph_(flowgraph),
         live_graph_(new IGraph(), new MoveList(),
-                    new graph::Table<temp::Temp, MoveList>()),
-        in_(std::make_unique<graph::Table<assem::Instr, temp::TempList>>()),
-        out_(std::make_unique<graph::Table<assem::Instr, temp::TempList>>()),
-        temp_node_map_(new tab::Table<temp::Temp, INode>()) {}
+                    new graph::Table<temp::Temp, MoveList>()){}
   void Liveness();
   LiveGraph GetLiveGraph() { return live_graph_; }
   MoveList *getMoveList(INodePtr node);
-  tab::Table<temp::Temp, INode> *GetTempNodeMap() { return temp_node_map_; }
+//  tab::Table<temp::Temp, INode> *GetTempNodeMap() { return temp_node_map_; }
 
 private:
   fg::FGraphPtr flowgraph_;
   LiveGraph live_graph_;
 
-  std::unique_ptr<graph::Table<assem::Instr, temp::TempList>> in_;
-  std::unique_ptr<graph::Table<assem::Instr, temp::TempList>> out_;
-  tab::Table<temp::Temp, INode> *temp_node_map_;
+//  tab::Table<temp::Temp, INode> *temp_node_map_;
+  std::map<temp::Temp *, INodePtr> temp_node_map_;
 
   bool Equal(temp::TempList *a, temp::TempList *b);
   bool Equal(IMap a, IMap b);
@@ -93,11 +89,10 @@ private:
   void LiveMap();
   void InterfGraph();
 
-  void init();
   void AddMoveList(graph::Table<temp::Temp, MoveList> *move_list, INodePtr node,
                    INodePtr src, INodePtr dst);
 
-  //  IMap in, out;
+  IMap in, out;
 };
 
 } // namespace live
