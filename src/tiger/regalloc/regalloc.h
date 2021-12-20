@@ -52,9 +52,6 @@ private:
   std::map<live::INodePtr, live::INodePtr> alias;
   temp::TempList *alreadySpilled = new temp::TempList;
 
-//  graph::Table<temp::Temp, live::INode> *alias =
-//      new graph::Table<temp::Temp, live::INode>;
-
   graph::NodeList<temp::Temp> *initial = new graph::NodeList<temp::Temp>;
   graph::NodeList<temp::Temp> *precolored = new graph::NodeList<temp::Temp>;
   graph::NodeList<temp::Temp> *spill_worklist = new graph::NodeList<temp::Temp>;
@@ -77,36 +74,32 @@ private:
   live::MoveList *worklist_moves;
   live::MvList *moveList;
 
+  void LivenessAnalysis();
   void Build();
   void AddEdge(live::INodePtr u, live::INodePtr v);
-  void LivenessAnalysis();
+  void MakeWorkList();
   live::MoveList *NodeMoves(live::INodePtr node);
   bool MoveRelated(live::INodePtr node);
+  void Simplify();
   void DecrementDegree(live::INodePtr m);
   void EnableMoves(graph::NodeList<temp::Temp> *nodes);
-  void Simplify();
-  void MakeWorkList();
   void Coalesce();
-  // Briggs algorithm
+  void AddWorkList(live::INodePtr node);
+  bool OK(live::INodePtr t, live::INodePtr r);
   bool Conservative(graph::NodeList<temp::Temp> *nodes);
-  // George algorithm
+  live::INodePtr GetAlias(live::INodePtr node);
   bool CoalesceOK(live::INodePtr u, live::INodePtr v);
   void Combine(live::INodePtr u, live::INodePtr v);
-  bool OK(live::INodePtr t, live::INodePtr r);
-  void AddWorkList(live::INodePtr node);
   void Freeze();
   void FreezeMoves(live::INodePtr u);
-  live::INodePtr GetAlias(live::INodePtr node);
   void SelectSpill();
   void AssignColors();
+  void RewriteProgram();
   void Color();
   void AssignRegisters();
   void AssignTemps(temp::TempList *temps);
   void RemoveMoves();
-
-  bool MeaninglessMove(temp::TempList *src, temp::TempList *dst);
-
-  void RewriteProgram();
+  bool SameMove(temp::TempList *src, temp::TempList *dst);
 };
 
 } // namespace ra
