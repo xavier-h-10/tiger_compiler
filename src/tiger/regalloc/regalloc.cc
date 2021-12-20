@@ -10,14 +10,9 @@ extern frame::RegManager *reg_manager;
 
 namespace ra {
 
+// ok
 void RegAllocator::RegAlloc() {
   std::cout << "RegAllocator::RegAlloc called" << std::endl;
-  Color();
-  AssignRegisters();
-}
-
-// ok
-void RegAllocator::Color() {
   while (true) {
     LivenessAnalysis();
     Build();
@@ -45,8 +40,35 @@ void RegAllocator::Color() {
     }
     std::cout << "Color: finish one time" << std::endl;
   }
+  std::cout << "color finish" << std::endl;
 
-  std::cout << "Color: finish!" << std::endl;
+  // 回填framesize 删除多余的move
+  auto il = assem_instr_->GetInstrList();
+  auto &instr_list = il->GetList();
+  std::string assem=frame->func_->Name()+"_framesize";
+  for (auto it = instr_list.begin(); it != instr_list.end();) {
+    auto instr = *it;
+    instr->assem_ = std::regex_replace(instr->assem_, std::regex(assem),
+                                       std::to_string(frame->frameSize()));
+    if (typeid(*instr) == typeid(assem::MoveInstr)) {
+      auto tmp = (assem::MoveInstr *)instr;
+      auto src = tmp->src_;
+      auto dst = tmp->dst_;
+      if (!SameMove(src, dst)) {
+        AssignTemps(src);
+        AssignTemps(dst);
+      } else {
+        it = instr_list.erase(it);
+        continue;
+      }
+    } else if (typeid(*instr) == typeid(assem::OperInstr)) {
+      auto tmp = (assem::OperInstr *)instr;
+      AssignTemps(tmp->src_);
+      AssignTemps(tmp->dst_);
+    }
+    it++;
+  }
+  result->il_ = il;
 }
 
 // ok
@@ -393,54 +415,55 @@ void RegAllocator::AssignColors() {
   }
 }
 
+// ok
 void RegAllocator::RewriteProgram() {
-  graph::NodeList<temp::Temp> *new_temps = new graph::NodeList<temp::Temp>;
-  char buf[256];
+  graph::NodeList<temp::Temp> *new_temps = new graph::NodeList<temp::Temp>();
   auto spilled_list = spilled_nodes->GetList();
-
+  std::string assem;
   for (auto v : spilled_list) {
+    auto old_temp = v->NodeInfo();
     auto new_temp = temp::TempFactory::NewTemp();
     already_spill->Append(new_temp);
-    auto old_temp = v->NodeInfo();
-    frame->locals++;
+
     temp::TempList *src = nullptr;
     temp::TempList *dst = nullptr;
     auto &instr_list = assem_instr_->GetInstrList()->GetList();
+    frame->locals++;
+    auto rsp = reg_manager->StackPointer();
+
     for (auto it = instr_list.begin(); it != instr_list.end(); it++) {
       auto instr = *it;
       if (typeid(*instr) == typeid(assem::MoveInstr)) {
-        auto moveInstr = dynamic_cast<assem::MoveInstr *>(instr);
-        src = moveInstr->src_;
-        dst = moveInstr->dst_;
+        auto tmp = (assem::MoveInstr *)instr;
+        src = tmp->src_;
+        dst = tmp->dst_;
       } else if (typeid(*instr) == typeid(assem::OperInstr)) {
-        auto operInstr = dynamic_cast<assem::OperInstr *>(instr);
-        src = operInstr->src_;
-        dst = operInstr->dst_;
+        auto tmp = (assem::OperInstr *)instr;
+        src = tmp->src_;
+        dst = tmp->dst_;
       }
 
       if (src && src->Contain(old_temp)) {
         src->Replace(old_temp, new_temp);
-        sprintf(buf, "movq (%s_framesize-%d)(`s0), `d0",
-                frame->func_->Name().c_str(), frame->locals * word_size);
-        auto newInstr = new assem::OperInstr(
-            buf, new temp::TempList(new_temp),
-            new temp::TempList({reg_manager->StackPointer()}), nullptr);
-        it = instr_list.insert(it, newInstr);
+        assem = "movq (" + frame->func_->Name() + "_framesize-" +
+                std::to_string(frame->locals * word_size) + ")(`s0), `d0";
+        auto tmp = new assem::OperInstr(assem, new temp::TempList(new_temp),
+                                        new temp::TempList(rsp), nullptr);
+        it = instr_list.insert(it, tmp);
         it++;
       }
 
       if (dst && dst->Contain(old_temp)) {
         dst->Replace(old_temp, new_temp);
-        sprintf(buf, "movq `s0, (%s_framesize-%d)(`d0)",
-                frame->func_->Name().c_str(), frame->locals * word_size);
-        auto newInstr = new assem::OperInstr(
-            buf, new temp::TempList({reg_manager->StackPointer()}),
-            new temp::TempList(new_temp), nullptr);
-        it = instr_list.insert(std::next(it), newInstr);
+        assem = "movq `s0, (" + frame->func_->Name() + "_framesize-" +
+                std::to_string(frame->locals * word_size) + ")(`d0)";
+        auto tmp = new assem::OperInstr(assem, new temp::TempList(rsp),
+                                        new temp::TempList(new_temp), nullptr);
+        it = instr_list.insert(std::next(it), tmp);
       }
     }
   }
-  //initial在build中定义
+  // initial在build中定义
   spilled_nodes->Clear();
   colored_nodes->Clear();
   coalesced_nodes->Clear();
@@ -464,38 +487,6 @@ bool RegAllocator::SameMove(temp::TempList *src, temp::TempList *dst) {
     return color[src->GetList().front()] == color[dst->GetList().front()];
   }
   return false;
-}
-
-void RegAllocator::AssignRegisters() {
-  auto il = assem_instr_->GetInstrList();
-  auto &instr_list = il->GetList();
-  auto iter = instr_list.begin();
-  char framesize_buf[256];
-  sprintf(framesize_buf, "%s_framesize", frame->func_->Name().c_str());
-  std::string framesize(framesize_buf);
-  for (; iter != instr_list.end();) {
-    auto instr = *iter;
-    instr->assem_ = std::regex_replace(instr->assem_, std::regex(framesize),
-                                       std::to_string(frame->frameSize()));
-    if (typeid(*instr) == typeid(assem::MoveInstr)) {
-      auto moveInstr = dynamic_cast<assem::MoveInstr *>(instr);
-      auto src = moveInstr->src_;
-      auto dst = moveInstr->dst_;
-      if (!SameMove(src, dst)) {
-        AssignTemps(src);
-        AssignTemps(dst);
-      } else {
-        iter = instr_list.erase(iter);
-        continue;
-      }
-    } else if (typeid(*instr) == typeid(assem::OperInstr)) {
-      auto operInstr = dynamic_cast<assem::OperInstr *>(instr);
-      AssignTemps(operInstr->src_);
-      AssignTemps(operInstr->dst_);
-    }
-    ++iter;
-  }
-  result->il_ = il;
 }
 
 // ok

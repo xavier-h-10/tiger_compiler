@@ -112,8 +112,6 @@ private:
   void SelectSpill();
   void AssignColors();
   void RewriteProgram();
-  void Color();
-  void AssignRegisters();
   void AssignTemps(temp::TempList *temps);
   void RemoveMoves();
   bool SameMove(temp::TempList *src, temp::TempList *dst);
