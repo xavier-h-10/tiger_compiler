@@ -2,6 +2,8 @@
 #include "tiger/output/logger.h"
 #include <regex>
 #include <set>
+
+#define K 15
 extern frame::RegManager *reg_manager;
 
 namespace ra {
@@ -226,7 +228,7 @@ graph::Node<temp::Temp> *RegAllocator::GetAlias(graph::Node<temp::Temp> *n) {
   }
 }
 
-//ok
+// ok
 void RegAllocator::Combine(live::INodePtr u, live::INodePtr v) {
   if (freeze_worklist->Contain(v)) {
     freeze_worklist->DeleteNode(v);
@@ -235,10 +237,11 @@ void RegAllocator::Combine(live::INodePtr u, live::INodePtr v) {
   }
   coalesced_nodes->Append(v);
   alias[v] = u;
-  move_list->Set(u, move_list->Look(u)->Union(move_list->Look(v)));
-  EnableMoves(new graph::NodeList<temp::Temp>({v}));
+  auto tmp = move_list->Look(u)->Union(move_list->Look(v));
+  move_list->Set(u, tmp);
+  EnableMoves(new graph::NodeList<temp::Temp>(v));
 
-//  auto node_list = v->Succ()->GetList();
+  //  auto node_list = v->Succ()->GetList();
   for (auto node : v->Succ()->GetList()) {
     AddEdge(node, u);
     DecrementDegree(node);
@@ -250,18 +253,20 @@ void RegAllocator::Combine(live::INodePtr u, live::INodePtr v) {
   }
 }
 
-//ok
+// ok
 void RegAllocator::Freeze() {
   auto u = freeze_worklist->Pop();
   simplify_worklist->Append(u);
   FreezeMoves(u);
 }
 
+// ok
 void RegAllocator::FreezeMoves(graph::Node<temp::Temp> *u) {
-  for (auto m : NodeMoves(u)->GetList()) {
-    live::INodePtr v;
-    auto x = m.first;
-    auto y = m.second;
+  auto move_list = NodeMoves(u)->GetList();
+  graph::Node<temp::Temp> *v, *x, *y;
+  for (auto move : move_list) {
+    x = move.first;
+    y = move.second;
     if (GetAlias(y) == GetAlias(u)) {
       v = GetAlias(x);
     } else {
@@ -276,26 +281,43 @@ void RegAllocator::FreezeMoves(graph::Node<temp::Temp> *u) {
   }
 }
 
+// ok
 void RegAllocator::SelectSpill() {
-  live::INodePtr m = nullptr;
+  graph::Node<temp::Temp> *node = nullptr;
   int maxDegree = 0;
-  for (auto n : spill_worklist->GetList()) {
-    if (alreadySpilled->Contain(n->NodeInfo())) {
+  auto spill_list = spill_worklist->GetList();
+  //启发式: 选度数最大的 选不到就选worklist最前面的
+  for (auto n : spill_list) {
+    if (already_spill->Contain(n->NodeInfo())) {
       continue;
     }
     if (degree[n] > maxDegree) {
-      m = n;
+      node = n;
       maxDegree = degree[n];
     }
   }
-  if (m)
-    spill_worklist->DeleteNode(m);
-  else
-    m = spill_worklist->Pop();
-  simplify_worklist->Append(m);
-  FreezeMoves(m);
+  if (node) {
+    spill_worklist->DeleteNode(node);
+  } else {
+    node = spill_worklist->Pop();
+  }
+  simplify_worklist->Append(node);
+  FreezeMoves(node);
+
+  //  double chosen_weight=-1;
+  //  std::list<Node<temp::Temp> *> node_list = spill_worklist->GetFirst();
+  //  for(auto node: node_list) {
+  //    if(spill_temp.find(node->NodeInfo())!=spill_temp.end()) {
+  //      continue;
+  //    }
+  //    if(chose_weight==-1 || live_graph.weight[node->NodeInfo())]<res]) {
+  //        chosen_node=node;
+  //        chosen_weight=live_graph.weight[node->NodeInfo()];
+  //      }
+  //  }
 }
 
+// ok
 void RegAllocator::AssignColors() {
   while (!select_stack.empty()) {
     auto n = select_stack.top();
@@ -304,44 +326,45 @@ void RegAllocator::AssignColors() {
       continue;
     }
 
-    std::set<int> okColors;
-    auto rsp = reg_manager->StackPointer()->Int();
-    auto rbp = rsp + 1;
-    for (int i = 0; i <= K; ++i) {
-      if (i != rsp && i != rbp)
-        okColors.insert(i);
+    // rsp, rbp最好不要用
+    std::set<int> ok_colors;
+    int rsp = reg_manager->StackPointer()->Int();
+    for (int i = 0; i <= K; i++) {
+      if (i != rsp && i != rsp + 1)
+        ok_colors.insert(i);
     }
 
-    for (auto w : n->Succ()->GetList()) {
-      auto wAlias = GetAlias(w);
+    auto node_list = n->Succ()->GetList();
 
-      if (colors.find(wAlias->NodeInfo()) != colors.end()) {
-        okColors.erase(colors[wAlias->NodeInfo()]);
+    for (auto w : n->Succ()->GetList()) {
+      if (colors.find(GetAlias(w)->NodeInfo()) != colors.end()) {
+        ok_colors.erase(colors[GetAlias(w)->NodeInfo()]);
       }
     }
 
-    if (okColors.empty()) {
+    if (ok_colors.empty()) {
       spilled_nodes->Append(n);
     } else {
       colored_nodes->Append(n);
-      int c = *okColors.begin();
+      int c = *(ok_colors.begin()); // ok_colors里随意选一个
       colors[n->NodeInfo()] = c;
     }
   }
-  for (auto n : coalesced_nodes->GetList()) {
+  auto coalesced_list = coalesced_nodes->GetList();
+  for (auto n : coalesced_list) {
     colors[n->NodeInfo()] = colors[GetAlias(n)->NodeInfo()];
   }
 }
 
 void RegAllocator::RewriteProgram() {
   graph::NodeList<temp::Temp> *newTemps = new graph::NodeList<temp::Temp>;
-  alreadySpilled->Clear();
+  already_spill->Clear();
   auto il = assemInstr->GetInstrList();
   char buf[256];
   const int wordSize = reg_manager->WordSize();
   for (auto v : spilled_nodes->GetList()) {
     auto newTemp = temp::TempFactory::NewTemp(); // namely vi
-    alreadySpilled->Append(newTemp);
+    already_spill->Append(newTemp);
     auto oldTemp = v->NodeInfo();
     ++frame->localNumber;
     temp::TempList *src = nullptr, *dst = nullptr;

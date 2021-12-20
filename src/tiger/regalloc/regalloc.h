@@ -33,7 +33,25 @@ class RegAllocator {
 public:
   RegAllocator(frame::Frame *frame, std::unique_ptr<cg::AssemInstr> assemInstr)
       : frame(frame), assemInstr(std::move(assemInstr)),
-        result(std::make_unique<Result>()) {}
+        result(std::make_unique<Result>()) {
+    initial = new graph::NodeList<temp::Temp>();
+    precolored = new graph::NodeList<temp::Temp>();
+
+    simplify_worklist = new graph::NodeList<temp::Temp>();
+    freeze_worklist = new graph::NodeList<temp::Temp>();
+    spill_worklist = new graph::NodeList<temp::Temp>();
+    coalesced_nodes = new graph::NodeList<temp::Temp>();
+    spilled_nodes = new graph::NodeList<temp::Temp>();
+    colored_nodes = new graph::NodeList<temp::Temp>();
+
+    constrained_moves = new live::MoveList();
+    coalesced_moves = new live::MoveList();
+    constrained_moves = new live::MoveList();
+    frozen_moves = new live::MoveList();
+    active_moves= new live::MoveList();
+
+    already_spill = new temp::TempList();
+  }
 
   void RegAlloc();
 
@@ -45,36 +63,33 @@ private:
 
   live::LiveGraphFactory *liveGraphFactory;
   std::unique_ptr<Result> result;
-  static constexpr int K = 15;
 
   std::map<temp::Temp *, int> colors;
   std::map<live::INodePtr, int> degree;
   std::map<live::INodePtr, live::INodePtr> alias;
-  temp::TempList *alreadySpilled = new temp::TempList;
 
-  graph::NodeList<temp::Temp> *initial = new graph::NodeList<temp::Temp>;
-  graph::NodeList<temp::Temp> *precolored = new graph::NodeList<temp::Temp>;
-  graph::NodeList<temp::Temp> *spill_worklist = new graph::NodeList<temp::Temp>;
-  graph::NodeList<temp::Temp> *freeze_worklist =
-      new graph::NodeList<temp::Temp>;
-  graph::NodeList<temp::Temp> *simplify_worklist =
-      new graph::NodeList<temp::Temp>;
+  graph::NodeList<temp::Temp> *initial;
+  graph::NodeList<temp::Temp> *precolored;
+  graph::NodeList<temp::Temp> *spill_worklist;
+  graph::NodeList<temp::Temp> *freeze_worklist;
+  graph::NodeList<temp::Temp> *simplify_worklist;
 
-  graph::NodeList<temp::Temp> *spilled_nodes = new graph::NodeList<temp::Temp>;
-  graph::NodeList<temp::Temp> *colored_nodes = new graph::NodeList<temp::Temp>;
-  graph::NodeList<temp::Temp> *coalesced_nodes =
-      new graph::NodeList<temp::Temp>;
+  graph::NodeList<temp::Temp> *spilled_nodes;
+  graph::NodeList<temp::Temp> *colored_nodes;
+  graph::NodeList<temp::Temp> *coalesced_nodes;
 
-  live::MoveList *active_moves = new live::MoveList();
-  live::MoveList *coalesced_moves = new live::MoveList();
-  live::MoveList *constrained_moves = new live::MoveList();
-  live::MoveList *frozen_moves = new live::MoveList();
-
-  std::stack<live::INodePtr> select_stack;
-
-  live::IGraphPtr interf_graph;
+  live::MoveList *coalesced_moves;
+  live::MoveList *constrained_moves;
+  live::MoveList *frozen_moves;
   live::MoveList *worklist_moves;
+  live::MoveList *active_moves;
+
+  std::stack<graph::Node<temp::Temp> *> select_stack;
+
+  graph::Graph<temp::Temp> *interf_graph;
   live::MvList *move_list;
+
+  temp::TempList *already_spill;
 
   void LivenessAnalysis();
   void Build();
@@ -107,3 +122,15 @@ private:
 } // namespace ra
 
 #endif
+
+//
+////  tab::Table<graph::Node<temp::Temp>, std::string> *color;
+//
+//std::map<graph::Node<temp::Temp> *, int> degree;
+//std::set<std::pair<graph::Node<temp::Temp> *, graph::Node<temp::Temp> *>>
+//    adj_set;
+//std::map<graph::Node<temp::Temp> *, graph::NodeList<temp::Temp> *> adj_list;
+//std::map<graph::Node<temp::Temp> *, graph::Node<temp::Temp> *> alias;
+//std::map<graph::Node<temp::Temp> *, live::MoveList *> move_list;
+//
+////  std::map<graph::Node<temp::Temp> *, std::string> color;
