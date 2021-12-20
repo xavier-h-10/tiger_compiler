@@ -158,8 +158,9 @@ void RegAllocator::EnableMoves(graph::NodeList<temp::Temp> *nodes) {
   }
 }
 
+//ok
 void RegAllocator::Coalesce() {
-  graph::Node<temp::Temp> *m = worklist_moves->Pop();
+  auto m = worklist_moves->Pop();
   graph::Node<temp::Temp> *x, *y, *u, *v;
   x = m.first;
   y = m.second;
@@ -186,10 +187,9 @@ void RegAllocator::Coalesce() {
       coalesced_moves->Append(x, y);
       Combine(u, v);
       AddWorkList(u);
+    } else {
+      active_moves->Append(x, y);
     }
-  }
-  else {
-    active_moves->Append(x, y);
   }
 }
 

@@ -86,12 +86,11 @@ private:
   void DecrementDegree(graph::Node<temp::Temp> *m);
   void EnableMoves(graph::NodeList<temp::Temp> *nodes);
   void Coalesce();
-  void AddWorkList(live::INodePtr node);
-  bool OK(live::INodePtr t, live::INodePtr r);
+  void AddWorkList(graph::Node<temp::Temp> *u);
+  bool OK(graph::Node<temp::Temp> *t, graph::Node<temp::Temp> *r);
   bool Conservative(graph::NodeList<temp::Temp> *nodes);
   graph::Node<temp::Temp> *GetAlias(graph::Node<temp::Temp> *n);
-  bool judge_ok(live::INodePtr u, live::INodePtr v);
-  void Combine(live::INodePtr u, live::INodePtr v);
+  void Combine(graph::Node<temp::Temp> *u, graph::Node<temp::Temp> *v);
   void Freeze();
   void FreezeMoves(live::INodePtr u);
   void SelectSpill();
@@ -102,6 +101,7 @@ private:
   void AssignTemps(temp::TempList *temps);
   void RemoveMoves();
   bool SameMove(temp::TempList *src, temp::TempList *dst);
+  bool judge_ok(graph::Node<temp::Temp> *u, graph::Node<temp::Temp> *v);
 };
 
 } // namespace ra
