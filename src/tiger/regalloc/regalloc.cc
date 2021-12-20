@@ -70,8 +70,7 @@ void RegAllocator::Build() {
 // ok
 void RegAllocator::AddEdge(graph::Node<temp::Temp> *u,
                            graph::Node<temp::Temp> *v) {
-  if (u->Succ()->Contain(v) || v->Succ()->Contain(u) || u == v)
-  {
+  if (u->Succ()->Contain(v) || v->Succ()->Contain(u) || u == v) {
     return;
   }
   if (!precolored->Contain(u)) {
@@ -84,7 +83,7 @@ void RegAllocator::AddEdge(graph::Node<temp::Temp> *u,
   }
 }
 
-//ok
+// ok
 void RegAllocator::MakeWorkList() {
   std::list<graph::Node<temp::Temp> *> node_list = initial->GetList();
   for (auto node : node_list) {
@@ -99,21 +98,21 @@ void RegAllocator::MakeWorkList() {
   initial->Clear();
 }
 
-//ok
-live::MoveList *RegAllocator::NodeMoves(graph::Node<temp::Temp> *n)  {
+// ok
+live::MoveList *RegAllocator::NodeMoves(graph::Node<temp::Temp> *n) {
   auto tmp = move_list->Look(n);
   if (tmp == nullptr) {
-    tmp=new live::MoveList();
+    tmp = new live::MoveList();
   }
   return tmp->Intersect(active_moves->Union(worklist_moves));
 }
 
-//ok
+// ok
 bool RegAllocator::MoveRelated(graph::Node<temp::Temp> *n) {
   return !NodeMoves(n)->Empty();
 }
 
-//ok
+// ok
 void RegAllocator::Simplify() {
   if (simplify_worklist->Empty()) {
     return;
@@ -127,46 +126,51 @@ void RegAllocator::Simplify() {
   }
 }
 
-void RegAllocator::DecrementDegree(live::INodePtr m) {
-  --degree[m];
-  if (degree[m] == K - 1 && !precolored->Contain(m)) {
-    EnableMoves(m->Succ()->Union(new graph::NodeList<temp::Temp>({m})));
+// ok
+void RegAllocator::DecrementDegree(graph::Node<temp::Temp> *m) {
+  degree[m]--;
+  if (precolored->Contain(m)) {
+    return;
+  }
+  if (degree[m] == K - 1) {
+    auto tmp = new graph::NodeList<temp::Temp>(m);
+    EnableMoves(m->Succ()->Union(tmp));
     spill_worklist->DeleteNode(m);
     if (MoveRelated(m)) {
-      freeze_worklist->Append(m);
+      freeze_worklist->Append(m); // TODO: 考虑去重
     } else {
       simplify_worklist->Append(m);
     }
   }
 }
 
+// ok
 void RegAllocator::EnableMoves(graph::NodeList<temp::Temp> *nodes) {
-  for (auto n : nodes->GetList()) {
-    auto nodeMvs = NodeMoves(n);
-    for (auto m : nodeMvs->GetList()) {
-      auto src = m.first;
-      auto dst = m.second;
-      if (active_moves->Contain(src, dst)) {
-        active_moves->Delete(src, dst);
-        worklist_moves->Append(src, dst);
+  auto node_list = nodes->GetList();
+  for (auto n : node_list) {
+    auto move_list = NodeMoves(n)->GetList();
+    for (auto move : move_list) {
+      if (active_moves->Contain(move.first, move.second)) {
+        active_moves->Delete(move.first, move.second);
+        worklist_moves->Append(move.first, move.second);
       }
     }
   }
 }
 
 void RegAllocator::Coalesce() {
-  auto m = worklist_moves->Pop();
-  auto x = GetAlias(m.first);
-  auto y = GetAlias(m.second);
-  live::INodePtr u, v;
+  graph::Node<temp::Temp> *m = worklist_moves->Pop();
+  graph::Node<temp::Temp> *x, *y, *u, *v;
+  x = m.first;
+  y = m.second;
+  x = GetAlias(x);
+  y = GetAlias(y);
   if (precolored->Contain(y)) {
     u = y;
     v = x;
-    //    (u, v) = (y, x);
   } else {
     u = x;
     v = y;
-    //    (u, v) = (x, y);
   }
   if (u == v) {
     coalesced_moves->Append(x, y);
@@ -175,13 +179,16 @@ void RegAllocator::Coalesce() {
     constrained_moves->Append(x, y);
     AddWorkList(u);
     AddWorkList(v);
-  } else if ((precolored->Contain(u) && CoalesceOK(u, v)) ||
-             (!precolored->Contain(u)) &&
-                 Conservative(u->Succ()->Union(v->Succ()))) {
-    coalesced_moves->Append(x, y);
-    Combine(u, v);
-    AddWorkList(u);
   } else {
+    auto tmp_list = u->Succ()->Union(v->Succ());
+    if ((precolored->Contain(u) && judge_ok(u, v)) ||
+        (!precolored->Contain(u)) && Conservative(tmp_list)) {
+      coalesced_moves->Append(x, y);
+      Combine(u, v);
+      AddWorkList(u);
+    }
+  }
+  else {
     active_moves->Append(x, y);
   }
 }
@@ -372,14 +379,6 @@ void RegAllocator::RewriteProgram() {
   coalesced_nodes->Clear();
 }
 
-bool RegAllocator::CoalesceOK(live::INodePtr u, live::INodePtr v) {
-  for (auto t : v->Succ()->GetList()) {
-    if (!OK(t, u))
-      return false;
-  }
-  return true;
-}
-
 void RegAllocator::LivenessAnalysis() {
   auto il = assemInstr.get()->GetInstrList();
   fg::FlowGraphFactory flowGraphFactory(il);
@@ -399,10 +398,7 @@ void RegAllocator::AssignTemps(temp::TempList *temps) {
   static auto regs = reg_manager->Registers();
   auto map = temp::Map::Name();
   for (auto temp : temps->GetList()) {
-    //    std::cout << "color is: " << colors[temp] << std::endl;
     auto tgt = map->Look(regs->NthTemp(colors[temp]));
-    //    std::cout << "assign: " << *map->Look(temp) << " to "
-    //              << *map->Look(regs->NthTemp(colors[temp])) << std::endl;
     map->Set(temp, tgt);
   }
 }
@@ -446,6 +442,17 @@ void RegAllocator::AssignRegisters() {
     ++iter;
   }
   result->il_ = il;
+}
+
+// ok
+bool RegAllocator::judge_ok(graph::Node<temp::Temp> *u,
+                            graph::Node<temp::Temp> *v) {
+  auto node_list = v->Succ()->GetList();
+  for (auto node : node_list) {
+    if (!OK(node, u))
+      return false;
+  }
+  return true;
 }
 
 } // namespace ra
