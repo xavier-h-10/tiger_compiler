@@ -65,7 +65,7 @@ private:
   live::LiveGraphFactory *lg_factory;
   std::unique_ptr<Result> result;
 
-  std::map<temp::Temp *, int> colors;
+  std::map<temp::Temp *, int> color;
   std::map<live::INodePtr, int> degree;
   std::map<live::INodePtr, live::INodePtr> alias;
 

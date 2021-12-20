@@ -4,6 +4,8 @@
 #include <set>
 
 #define K 15
+#define word_size 8
+
 extern frame::RegManager *reg_manager;
 
 namespace ra {
@@ -14,6 +16,7 @@ void RegAllocator::RegAlloc() {
   AssignRegisters();
 }
 
+//ok
 void RegAllocator::Color() {
   while (true) {
     LivenessAnalysis();
@@ -62,25 +65,46 @@ void RegAllocator::LivenessAnalysis() {
   interf_graph = live_graph.interf_graph;
 }
 
+//ok
 void RegAllocator::Build() {
-  initial->Clear();
   precolored->Clear();
-  alias.clear();
-  colors.clear();
+  initial->Clear();
   degree.clear();
+  alias.clear();
+  color.clear();
+
   std::list<graph::Node<temp::Temp> *> node_list =
       interf_graph->Nodes()->GetList();
+
   for (auto node : node_list) {
     degree[node] = node->OutDegree();
     alias[node] = node;
     auto temp = node->NodeInfo();
-    if (temp->num_ >= 100) {
+    if (temp->num_ >= 100) {   // 不是寄存器的情况
       initial->Append(node);
     } else {
       precolored->Append(node);
-      colors[node->NodeInfo()] = node->NodeInfo()->Int();
+      color[node->NodeInfo()] = node->NodeInfo()->Int();
     }
   }
+
+//  std::list<std::pair<INodePtr, INodePtr>> moves =
+//      live_graph.moves->GetList(); // std::list<std::pair<INodePtr, INodePtr>>
+//  for (std::pair<INodePtr, INodePtr> move : moves) {
+//    auto src = move.first;
+//    auto dst = move.second;
+//    move_list[src]->Append(src, dst);
+//    move_list[dst]->Append(src, dst);
+//  }
+//  worklist_moves = live_graph.moves;
+//  std::list<graph::Node<temp::Temp> *> node_list =
+//      live_graph.interf_graph->Nodes()->GetList();
+//  for (auto node : node_list) {
+//    auto adj_list = node->Adj()->GetList();
+//    for (auto adj : adj_list) {
+//      AddEdge(node, adj);
+//    }
+//  }
 }
 
 // ok
@@ -349,8 +373,8 @@ void RegAllocator::AssignColors() {
 
     auto node_list = n->Succ()->GetList();
     for (auto w : n->Succ()->GetList()) {
-      if (colors.find(GetAlias(w)->NodeInfo()) != colors.end()) {
-        ok_colors.erase(colors[GetAlias(w)->NodeInfo()]);
+      if (color.find(GetAlias(w)->NodeInfo()) != color.end()) {
+        ok_colors.erase(color[GetAlias(w)->NodeInfo()]);
       }
     }
     if (ok_colors.empty()) {
@@ -358,24 +382,25 @@ void RegAllocator::AssignColors() {
     } else {
       colored_nodes->Append(n);
       int c = *(ok_colors.begin()); // ok_colors里随意选一个
-      colors[n->NodeInfo()] = c;
+      color[n->NodeInfo()] = c;
     }
   }
 
   auto coalesced_list = coalesced_nodes->GetList();
   for (auto n : coalesced_list) {
-    colors[n->NodeInfo()] = colors[GetAlias(n)->NodeInfo()];
+    color[n->NodeInfo()] = color[GetAlias(n)->NodeInfo()];
   }
 }
 
 void RegAllocator::RewriteProgram() {
-  graph::NodeList<temp::Temp> *newTemps = new graph::NodeList<temp::Temp>;
+  graph::NodeList<temp::Temp> *new_temps = new graph::NodeList<temp::Temp>;
   already_spill->Clear();
   auto il = assem_instr_->GetInstrList();
   char buf[256];
-  const int wordSize = reg_manager->WordSize();
-  for (auto v : spilled_nodes->GetList()) {
-    auto newTemp = temp::TempFactory::NewTemp(); // namely vi
+  
+  auto spilled_list=spilled_nodes->GetList();
+  for (auto v : spilled_list) {
+    auto newTemp = temp::TempFactory::NewTemp();
     already_spill->Append(newTemp);
     auto oldTemp = v->NodeInfo();
     ++frame->localNumber;
@@ -397,7 +422,7 @@ void RegAllocator::RewriteProgram() {
       if (src && src->Contain(oldTemp)) {
         src->Replace(oldTemp, newTemp);
         sprintf(buf, "movq (%s_framesize-%d)(`s0), `d0",
-                frame->func_->Name().c_str(), frame->localNumber * wordSize);
+                frame->func_->Name().c_str(), frame->localNumber * word_size);
         auto newInstr = new assem::OperInstr(
             buf, new temp::TempList({newTemp}),
             new temp::TempList({reg_manager->StackPointer()}), nullptr);
@@ -408,7 +433,7 @@ void RegAllocator::RewriteProgram() {
       if (dst && dst->Contain(oldTemp)) {
         dst->Replace(oldTemp, newTemp);
         sprintf(buf, "movq `s0, (%s_framesize-%d)(`d0)",
-                frame->func_->Name().c_str(), frame->localNumber * wordSize);
+                frame->func_->Name().c_str(), frame->localNumber * word_size);
         auto newInstr = new assem::OperInstr(
             buf, new temp::TempList({reg_manager->StackPointer()}),
             new temp::TempList({newTemp}), nullptr);
@@ -428,7 +453,7 @@ void RegAllocator::AssignTemps(temp::TempList *temps) {
   static auto regs = reg_manager->Registers();
   auto map = temp::Map::Name();
   for (auto temp : temps->GetList()) {
-    auto tgt = map->Look(regs->NthTemp(colors[temp]));
+    auto tgt = map->Look(regs->NthTemp(color[temp]));
     map->Set(temp, tgt);
   }
 }
@@ -437,13 +462,13 @@ void RegAllocator::AssignTemps(temp::TempList *temps) {
 // p175 去除src和dst相同的情况
 bool RegAllocator::SameMove(temp::TempList *src, temp::TempList *dst) {
   if (src && dst) {
-    return colors[src->GetList().front()] == colors[dst->GetList().front()];
+    return color[src->GetList().front()] == color[dst->GetList().front()];
   }
   return false;
 }
 
 void RegAllocator::AssignRegisters() {
-  auto il = assem_instr_.get()->GetInstrList();
+  auto il = assem_instr_->GetInstrList();
   auto &instrList = il->GetList();
   auto iter = instrList.begin();
   char framesize_buf[256];
