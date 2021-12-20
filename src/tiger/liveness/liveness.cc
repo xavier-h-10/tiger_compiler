@@ -72,7 +72,7 @@ void LiveGraphFactory::LiveMap() {
   bool no_change = false;
   init();
   auto instrNodes = flowgraph_->Nodes()->GetList();
-  std::cout<<"instr size="<<instrNodes.size()<<std::endl;
+//  std::cout<<"instr size="<<instrNodes.size()<<std::endl;
   while (!no_change) {
     auto iter = instrNodes.rbegin();
     for (; iter != instrNodes.rend(); ++iter) {
@@ -136,7 +136,6 @@ void LiveGraphFactory::addMoveList(MvList *move_list, INodePtr node,
 }
 
 void LiveGraphFactory::InterfGraph() {
-  /* TODO: Put your lab6 code here */
   std::cout << "LiveGraphFactory::InterfGraph called" << std::endl;
   auto interf_graph = live_graph_.interf_graph;
   auto moves = live_graph_.moves;
@@ -146,10 +145,6 @@ void LiveGraphFactory::InterfGraph() {
   for (; instr_iter != instrNodes.rend(); ++instr_iter) {
     auto instrNode = *instr_iter;
     auto instr = instrNode->NodeInfo();
-
-    //    std::cout << "analyze instr: ";
-    //    instr->Print(stdout, temp::Map::Name());
-
     auto def = instr->Def();
     auto use = instr->Use();
     auto live = out_->Look(instrNode);

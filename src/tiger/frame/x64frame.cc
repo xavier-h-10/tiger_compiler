@@ -40,14 +40,14 @@ public:
   tree::Stm *Sp2Fp() override;
 
   inline int frameSize() const override {
-    return localNumber * reg_manager->WordSize();
+    return locals * reg_manager->WordSize();
   }
   /// TODO: fix here
 };
 
 Access *X64Frame::AllocLocal(bool escape) {
   Access *access = escape ? dynamic_cast<Access *>(new InFrameAccess(
-                                (-(++localNumber)) * reg_manager->WordSize()))
+                                (-(++locals)) * reg_manager->WordSize()))
                           : dynamic_cast<Access *>(
                                 new InRegAccess(temp::TempFactory::NewTemp()));
   return access;
