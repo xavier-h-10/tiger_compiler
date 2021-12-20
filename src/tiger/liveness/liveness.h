@@ -31,7 +31,7 @@ public:
   bool Contain(INodePtr src, INodePtr dst);
   void Delete(INodePtr src, INodePtr dst);
   std::pair<INodePtr, INodePtr> Front() { return move_list_.front(); }
-  std::pair<INodePtr, INodePtr> PopFront() {
+  std::pair<INodePtr, INodePtr> Pop() {
     auto frt = move_list_.front();
     move_list_.pop_front();
     return frt;

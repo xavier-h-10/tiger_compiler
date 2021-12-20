@@ -111,7 +111,7 @@ public:
   void Prepend(Node<T> *n) { node_list_.push_front(n); }
   void Append(Node<T> *n) { node_list_.push_back(n); }
   inline bool Empty() { return node_list_.empty(); }
-  Node<T> *PopFront() {
+  Node<T> *Pop() {
     auto frt = node_list_.front();
     node_list_.pop_front();
     return frt;

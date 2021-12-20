@@ -84,6 +84,22 @@ void RegAllocator::AddEdge(graph::Node<temp::Temp> *u,
   }
 }
 
+//ok
+void RegAllocator::MakeWorkList() {
+  std::list<graph::Node<temp::Temp> *> node_list = initial->GetList();
+  for (auto node : node_list) {
+    if (degree[node] >= K) {
+      spill_worklist->Append(node);
+    } else if (MoveRelated(node)) {
+      freeze_worklist->Append(node);
+    } else {
+      simplify_worklist->Append(node);
+    }
+  }
+  initial->Clear();
+}
+
+//ok
 live::MoveList *RegAllocator::NodeMoves(graph::Node<temp::Temp> *n)  {
   auto tmp = move_list->Look(n);
   if (tmp == nullptr) {
@@ -97,31 +113,17 @@ bool RegAllocator::MoveRelated(graph::Node<temp::Temp> *n) {
   return !NodeMoves(n)->Empty();
 }
 
-void RegAllocator::MakeWorkList() {
-  auto &nodes = initial->GetList();
-  for (auto n : nodes) {
-    if (degree[n] >= K) {
-      spill_worklist->Append(n);
-    } else if (MoveRelated(n)) {
-      freeze_worklist->Append(n);
-    } else {
-      simplify_worklist->Append(n);
-    }
-  }
-  initial->Clear();
-}
-
+//ok
 void RegAllocator::Simplify() {
-  if (simplify_worklist->Empty())
+  if (simplify_worklist->Empty()) {
     return;
-
-  auto node = simplify_worklist->PopFront();
-  select_stack.push(node);
-
-  interf_graph->DeleteNode(node);
-
-  for (auto adj : node->Succ()->GetList()) {
-    DecrementDegree(adj);
+  }
+  auto n = simplify_worklist->Pop();
+  select_stack.push(n);
+  interf_graph->DeleteNode(n);
+  auto list = n->Succ()->GetList();
+  for (auto m : list) {
+    DecrementDegree(m);
   }
 }
 
@@ -153,7 +155,7 @@ void RegAllocator::EnableMoves(graph::NodeList<temp::Temp> *nodes) {
 }
 
 void RegAllocator::Coalesce() {
-  auto m = worklist_moves->PopFront();
+  auto m = worklist_moves->Pop();
   auto x = GetAlias(m.first);
   auto y = GetAlias(m.second);
   live::INodePtr u, v;
@@ -235,7 +237,7 @@ void RegAllocator::Combine(live::INodePtr u, live::INodePtr v) {
 }
 
 void RegAllocator::Freeze() {
-  auto u = freeze_worklist->PopFront();
+  auto u = freeze_worklist->Pop();
   simplify_worklist->Append(u);
   FreezeMoves(u);
 }
@@ -274,7 +276,7 @@ void RegAllocator::SelectSpill() {
   if (m)
     spill_worklist->DeleteNode(m);
   else
-    m = spill_worklist->PopFront();
+    m = spill_worklist->Pop();
   simplify_worklist->Append(m);
   FreezeMoves(m);
 }
