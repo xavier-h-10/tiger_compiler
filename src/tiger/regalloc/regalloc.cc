@@ -396,18 +396,18 @@ void RegAllocator::AssignColors() {
 void RegAllocator::RewriteProgram() {
   graph::NodeList<temp::Temp> *new_temps = new graph::NodeList<temp::Temp>;
   char buf[256];
+  auto spilled_list = spilled_nodes->GetList();
 
-  auto spilled_list=spilled_nodes->GetList();
   for (auto v : spilled_list) {
-    auto newTemp = temp::TempFactory::NewTemp();
-    already_spill->Append(newTemp);
-    auto oldTemp = v->NodeInfo();
-    ++frame->locals;
-    temp::TempList *src = nullptr, *dst = nullptr;
+    auto new_temp = temp::TempFactory::NewTemp();
+    already_spill->Append(new_temp);
+    auto old_temp = v->NodeInfo();
+    frame->locals++;
+    temp::TempList *src = nullptr;
+    temp::TempList *dst = nullptr;
     auto &instr_list = assem_instr_->GetInstrList()->GetList();
-    auto iter = instr_list.begin();
-    for (; iter != instr_list.end(); ++iter) {
-      auto instr = *iter;
+    for (auto it = instr_list.begin(); it != instr_list.end(); it++) {
+      auto instr = *it;
       if (typeid(*instr) == typeid(assem::MoveInstr)) {
         auto moveInstr = dynamic_cast<assem::MoveInstr *>(instr);
         src = moveInstr->src_;
@@ -418,29 +418,29 @@ void RegAllocator::RewriteProgram() {
         dst = operInstr->dst_;
       }
 
-      if (src && src->Contain(oldTemp)) {
-        src->Replace(oldTemp, newTemp);
+      if (src && src->Contain(old_temp)) {
+        src->Replace(old_temp, new_temp);
         sprintf(buf, "movq (%s_framesize-%d)(`s0), `d0",
                 frame->func_->Name().c_str(), frame->locals * word_size);
         auto newInstr = new assem::OperInstr(
-            buf, new temp::TempList({newTemp}),
+            buf, new temp::TempList(new_temp),
             new temp::TempList({reg_manager->StackPointer()}), nullptr);
-        iter = instr_list.insert(iter, newInstr);
-        ++iter;
+        it = instr_list.insert(it, newInstr);
+        it++;
       }
 
-      if (dst && dst->Contain(oldTemp)) {
-        dst->Replace(oldTemp, newTemp);
+      if (dst && dst->Contain(old_temp)) {
+        dst->Replace(old_temp, new_temp);
         sprintf(buf, "movq `s0, (%s_framesize-%d)(`d0)",
                 frame->func_->Name().c_str(), frame->locals * word_size);
         auto newInstr = new assem::OperInstr(
             buf, new temp::TempList({reg_manager->StackPointer()}),
-            new temp::TempList({newTemp}), nullptr);
-        iter = instr_list.insert(std::next(iter), newInstr);
+            new temp::TempList(new_temp), nullptr);
+        it = instr_list.insert(std::next(it), newInstr);
       }
     }
   }
-
+  //initial在build中定义
   spilled_nodes->Clear();
   colored_nodes->Clear();
   coalesced_nodes->Clear();
