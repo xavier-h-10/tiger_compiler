@@ -112,7 +112,7 @@ private:
   void SelectSpill();
   void AssignColors();
   void RewriteProgram();
-  void AssignTemps(temp::TempList *temps);
+  void SetColor(temp::TempList *temps);
   void RemoveMoves();
   bool SameMove(temp::TempList *src, temp::TempList *dst);
   bool judge_ok(graph::Node<temp::Temp> *u, graph::Node<temp::Temp> *v);

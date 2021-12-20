@@ -45,26 +45,26 @@ void RegAllocator::RegAlloc() {
   // 回填framesize 删除多余的move
   auto il = assem_instr_->GetInstrList();
   auto &instr_list = il->GetList();
-  std::string assem=frame->func_->Name()+"_framesize";
+  std::string assem = frame->func_->Name() + "_framesize";
   for (auto it = instr_list.begin(); it != instr_list.end();) {
     auto instr = *it;
     instr->assem_ = std::regex_replace(instr->assem_, std::regex(assem),
                                        std::to_string(frame->frameSize()));
-    if (typeid(*instr) == typeid(assem::MoveInstr)) {
+    if (typeid(*instr) == typeid(assem::OperInstr)) {
+      auto tmp = (assem::OperInstr *)instr;
+      SetColor(tmp->src_);
+      SetColor(tmp->dst_);
+    } else if (typeid(*instr) == typeid(assem::MoveInstr)) {
       auto tmp = (assem::MoveInstr *)instr;
       auto src = tmp->src_;
       auto dst = tmp->dst_;
-      if (!SameMove(src, dst)) {
-        AssignTemps(src);
-        AssignTemps(dst);
-      } else {
+      if (SameMove(src, dst)) {
         it = instr_list.erase(it);
         continue;
+      } else {
+        SetColor(src);
+        SetColor(dst);
       }
-    } else if (typeid(*instr) == typeid(assem::OperInstr)) {
-      auto tmp = (assem::OperInstr *)instr;
-      AssignTemps(tmp->src_);
-      AssignTemps(tmp->dst_);
     }
     it++;
   }
@@ -469,14 +469,16 @@ void RegAllocator::RewriteProgram() {
   coalesced_nodes->Clear();
 }
 
-void RegAllocator::AssignTemps(temp::TempList *temps) {
-  if (!temps)
+void RegAllocator::SetColor(temp::TempList *temps) {
+  if (!temps) {
     return;
-  static auto regs = reg_manager->Registers();
+  }
+  auto regs = reg_manager->Registers();
   auto map = temp::Map::Name();
-  for (auto temp : temps->GetList()) {
-    auto tgt = map->Look(regs->NthTemp(color[temp]));
-    map->Set(temp, tgt);
+  auto temp_list = temps->GetList();
+  for (auto temp : temp_list) {
+    auto tmp = map->Look(regs->NthTemp(color[temp]));
+    map->Set(temp, tmp);
   }
 }
 
