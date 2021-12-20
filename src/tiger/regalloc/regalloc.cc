@@ -45,11 +45,12 @@ void RegAllocator::RegAlloc() {
   // 回填framesize 删除多余的move
   auto il = assem_instr_->GetInstrList();
   auto &instr_list = il->GetList();
-  std::string assem = frame->func_->Name() + "_framesize";
+  std::string assem = frame->name_->Name() + "_framesize";
   for (auto it = instr_list.begin(); it != instr_list.end();) {
     auto instr = *it;
-    instr->assem_ = std::regex_replace(instr->assem_, std::regex(assem),
-                                       std::to_string(frame->frameSize()));
+    instr->assem_ =
+        std::regex_replace(instr->assem_, std::regex(assem),
+                           std::to_string(frame->locals * word_size));
     if (typeid(*instr) == typeid(assem::OperInstr)) {
       auto tmp = (assem::OperInstr *)instr;
       SetColor(tmp->src_);
@@ -445,7 +446,7 @@ void RegAllocator::RewriteProgram() {
 
       if (src && src->Contain(old_temp)) {
         src->Replace(old_temp, new_temp);
-        assem = "movq (" + frame->func_->Name() + "_framesize-" +
+        assem = "movq (" + frame->name_->Name() + "_framesize-" +
                 std::to_string(frame->locals * word_size) + ")(`s0), `d0";
         auto tmp = new assem::OperInstr(assem, new temp::TempList(new_temp),
                                         new temp::TempList(rsp), nullptr);
@@ -455,7 +456,7 @@ void RegAllocator::RewriteProgram() {
 
       if (dst && dst->Contain(old_temp)) {
         dst->Replace(old_temp, new_temp);
-        assem = "movq `s0, (" + frame->func_->Name() + "_framesize-" +
+        assem = "movq `s0, (" + frame->name_->Name() + "_framesize-" +
                 std::to_string(frame->locals * word_size) + ")(`d0)";
         auto tmp = new assem::OperInstr(assem, new temp::TempList(rsp),
                                         new temp::TempList(new_temp), nullptr);

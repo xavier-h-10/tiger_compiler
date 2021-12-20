@@ -144,46 +144,36 @@ void LiveGraphFactory::AddMoveList(
 
 void LiveGraphFactory::InterfGraph() {
   std::cout << "LiveGraphFactory::InterfGraph called" << std::endl;
-  auto interf_graph = live_graph_.interf_graph;
-  auto moves = live_graph_.moves;
-  auto move_list = live_graph_.move_list;
-  auto instrNodes = flowgraph_->Nodes()->GetList();
-  auto instr_iter = instrNodes.rbegin();
-  for (; instr_iter != instrNodes.rend(); ++instr_iter) {
-    auto instrNode = *instr_iter;
-    auto instr = instrNode->NodeInfo();
+  std::list<graph::Node<assem::Instr> *> node_list =
+      flowgraph_->Nodes()->GetList();
+  for (auto it = node_list.rbegin(); it != node_list.rend(); it++) {
+    auto node = *it;
+    auto instr = node->NodeInfo();
     std::list<temp::Temp *> defs = instr->Def()->GetList();
     std::list<temp::Temp *> uses = instr->Use()->GetList();
-    auto live = out[instrNode];
-    auto orgLive = new temp::TempList({});
-    orgLive->Assign(live);
 
-    if (typeid(*instr) == typeid(assem::MoveInstr)) {
-      auto dstNode = GetNode(*(defs.begin()));
-      if (!uses.empty()) {
-        auto srcNode = GetNode(*(uses.begin()));
-        moves->Append(srcNode, dstNode);
-        AddMoveList(move_list, srcNode, srcNode, dstNode);
-        AddMoveList(move_list, dstNode, srcNode, dstNode);
-      }
-      // live = live \ use
-      live->Diff(instr->Use());
+    temp::TempList *live_list = out[node];
+
+    if (typeid(*instr) == typeid(assem::MoveInstr) && !defs.empty() &&
+        !uses.empty()) {
+      auto dst = GetNode(*(defs.begin()));
+      auto src = GetNode(*(uses.begin()));
+      live_graph_.moves->Append(src, dst);
+      AddMoveList(live_graph_.move_list, src, src, dst);
+      AddMoveList(live_graph_.move_list, dst, src, dst);
+      live_list->Diff(instr->Use());
     }
 
-    // live = live U def
-    live->Union(instr->Def());
-
-    for (auto defTemp : defs) {
-      auto defNode = GetNode(defTemp);
-      for (auto liveTemp : live->GetList()) {
-        auto liveNode = GetNode(liveTemp);
-        interf_graph->AddEdge(defNode, liveNode);
-        interf_graph->AddEdge(liveNode, defNode);
+    live_list->Union(instr->Def());
+    std::list<temp::Temp *> temp_list = live_list->GetList();
+    for (auto def : defs) {
+      graph::Node<temp::Temp> *dst = GetNode(def);
+      for (auto temp : temp_list) {
+        auto outs = GetNode(temp);
+        live_graph_.interf_graph->AddEdge(dst, outs);
+        live_graph_.interf_graph->AddEdge(outs, dst);
       }
     }
-
-    // recover live;
-    live->Assign(orgLive);
   }
 }
 

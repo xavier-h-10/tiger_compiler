@@ -78,7 +78,7 @@ public:
 class Frame {
   /* TODO: Put your lab5 code here */
 public:
-  temp::Label *func_;
+  temp::Label *name_;
   std::list<Access *> formals_;
 
   int locals = 0;

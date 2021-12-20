@@ -20,7 +20,7 @@ void CodeGen::Codegen() { /* TODO: Put your lab5 code here */
   auto stmList = traces_->GetStmList()->GetList();
   auto *instr_list = new assem::InstrList;
   std::string_view fs;
-  sprintf(framesize, "%s_framesize", frame_->func_->Name().c_str());
+  sprintf(framesize, "%s_framesize", frame_->name_->Name().c_str());
   for (auto stm : stmList) {
     stm->Munch(*instr_list, fs);
   }

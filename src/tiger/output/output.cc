@@ -100,11 +100,11 @@ void ProcFrag::OutputAssem(FILE *out, OutputPhase phase, bool need_ra) const {
   }
 
   TigerLog("-------====Output assembly for %s=====-----\n",
-           frame_->func_->Name().data());
+           frame_->name_->Name().data());
 
   assem::Proc *proc = frame::ProcEntryExit3(frame_, il);
 
-  std::string proc_name = frame_->func_->Name();
+  std::string proc_name = frame_->name_->Name();
 
   fprintf(out, ".globl %s\n", proc_name.data());
   fprintf(out, ".type %s, @function\n", proc_name.data());

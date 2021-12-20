@@ -65,7 +65,7 @@ Frame *NewFrame(temp::Label *fun, const std::list<bool> formals) {
   for (bool escape : formals) {
     frame->Append(frame->AllocLocal(escape));
   }
-  frame->func_ = fun;
+  frame->name_ = fun;
   return frame;
 }
 /**
@@ -76,10 +76,10 @@ Frame *NewFrame(temp::Label *fun, const std::list<bool> formals) {
 assem::Proc *ProcEntryExit3(frame::Frame *frame, assem::InstrList *body) {
   char buf[256];
   std::string prolog;
-    sprintf(buf, ".set %s_framesize, %d\n", frame->func_->Name().c_str(),
+    sprintf(buf, ".set %s_framesize, %d\n", frame->name_->Name().c_str(),
             frame->frameSize());
     prolog = std::string(buf);
-  sprintf(buf, "%s:\n", frame->func_->Name().c_str());
+  sprintf(buf, "%s:\n", frame->name_->Name().c_str());
   prolog.append(std::string(buf));
   sprintf(buf, "subq $%d, %%rsp\n", frame->frameSize());
   prolog.append(std::string(buf));
@@ -114,7 +114,7 @@ tree::Stm *ProcEntryExit1(frame::Frame *frame, tree::Stm *stm) {
                                   new tree::TempExp(calleeSaves->NthTemp(i))));
   }
 
-//  std::cout << frame->func_->Name() << " " << formals.size() << std::endl;
+//  std::cout << frame->name_->Name() << " " << formals.size() << std::endl;
 
   // view shift
   auto argRegs = reg_manager->ArgRegs();
