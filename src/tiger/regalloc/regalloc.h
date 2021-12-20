@@ -88,7 +88,7 @@ private:
   std::stack<graph::Node<temp::Temp> *> select_stack;
 
   graph::Graph<temp::Temp> *interf_graph;
-  live::MvList *move_list;
+  graph::Table<temp::Temp, live::MoveList> *move_list;
 
   temp::TempList *already_spill;
 

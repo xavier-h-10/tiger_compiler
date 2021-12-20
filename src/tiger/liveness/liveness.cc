@@ -67,7 +67,6 @@ void LiveGraphFactory::init() {
 }
 
 void LiveGraphFactory::LiveMap() {
-  /* TODO: Put your lab6 code here */
   std::cout << "LiveGraphFactory::LiveMap called" << std::endl;
   bool no_change = false;
   init();
@@ -115,7 +114,7 @@ void LiveGraphFactory::LiveMap() {
   }
 }
 
-INodePtr LiveGraphFactory::getNode(temp::Temp *temp) {
+INodePtr LiveGraphFactory::GetNode(temp::Temp *temp) {
   INodePtr node;
   if ((node = temp_node_map_->Look(temp)) == nullptr) {
     node = live_graph_.interf_graph->NewNode(temp);
@@ -124,7 +123,7 @@ INodePtr LiveGraphFactory::getNode(temp::Temp *temp) {
   return node;
 }
 
-void LiveGraphFactory::addMoveList(MvList *move_list, INodePtr node,
+void LiveGraphFactory::AddMoveList(graph::Table<temp::Temp, MoveList> *move_list, INodePtr node,
                                    INodePtr src, INodePtr dst) {
   auto mine = move_list->Look(node);
   if (mine == nullptr) {
@@ -153,13 +152,13 @@ void LiveGraphFactory::InterfGraph() {
 
     if (typeid(*instr) == typeid(assem::MoveInstr)) {
       auto dstTemp = def->NthTemp(0);
-      auto dstNode = getNode(dstTemp);
+      auto dstNode = GetNode(dstTemp);
       if (!use->Empty()) {
         auto srcTemp = use->NthTemp(0);
-        auto srcNode = getNode(srcTemp);
+        auto srcNode = GetNode(srcTemp);
         moves->Append(srcNode, dstNode);
-        addMoveList(move_list, srcNode, srcNode, dstNode);
-        addMoveList(move_list, dstNode, srcNode, dstNode);
+        AddMoveList(move_list, srcNode, srcNode, dstNode);
+        AddMoveList(move_list, dstNode, srcNode, dstNode);
       }
       // live = live \ use
       live->Diff(use);
@@ -169,9 +168,9 @@ void LiveGraphFactory::InterfGraph() {
     live->Union(def);
 
     for (auto defTemp : def->GetList()) {
-      auto defNode = getNode(defTemp);
+      auto defNode = GetNode(defTemp);
       for (auto liveTemp : live->GetList()) {
-        auto liveNode = getNode(liveTemp);
+        auto liveNode = GetNode(liveTemp);
         interf_graph->AddEdge(defNode, liveNode);
         interf_graph->AddEdge(liveNode, defNode);
       }
