@@ -31,9 +31,7 @@ class X64Frame : public Frame {
 public:
   Access *AllocLocal(bool escape) override;
 
-  inline int size() const override {
-    return locals * reg_manager->WordSize();
-  }
+  inline int size() const override { return locals * reg_manager->WordSize(); }
 };
 
 Access *X64Frame::AllocLocal(bool escape) {
@@ -53,16 +51,6 @@ Frame *NewFrame(temp::Label *fun, const std::list<bool> formals) {
   frame->name_ = fun;
   return frame;
 }
-///**
-//  std::string prolog_;
-//  InstrList *body_;
-//  std::string epilog_;
-// */
-//
-//void ProcEntryExit2(assem::InstrList &instr_list) {
-//  auto returnSink = reg_manager->ReturnSink();
-//  instr_list.Append(new assem::OperInstr("", nullptr, returnSink, nullptr));
-//}
 
 tree::Stm *ProcEntryExit1(frame::Frame *frame, tree::Stm *stm) {
   temp::TempList *callee_saves = reg_manager->CalleeSaves();
@@ -117,10 +105,9 @@ tree::Stm *ProcEntryExit1(frame::Frame *frame, tree::Stm *stm) {
   return seq_stm;
 }
 
-assem::InstrList *ProcEntryExit2(assem::InstrList *body) {
-  body->Append(new assem::OperInstr("", new temp::TempList(),
-                                    reg_manager->ReturnSink(), nullptr));
-  return body;
+void ProcEntryExit2(assem::InstrList &body) {
+  body.Append(
+      new assem::OperInstr("", nullptr, reg_manager->ReturnSink(), nullptr));
 }
 
 assem::Proc *ProcEntryExit3(frame::Frame *frame, assem::InstrList *body) {

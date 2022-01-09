@@ -151,9 +151,8 @@ private:
 };
 
 tree::Stm *ProcEntryExit1(frame::Frame *frame, tree::Stm *stm);
-void ProcEntryExit2(assem::InstrList &instr_list);
+void ProcEntryExit2(assem::InstrList &body);
 assem::Proc *ProcEntryExit3(frame::Frame *frame, assem::InstrList *body);
-/* TODO: Put your lab5 code here */
 Frame *NewFrame(temp::Label *fun, const std::list<bool> formals);
 } // namespace frame
 
