@@ -53,77 +53,74 @@ Frame *NewFrame(temp::Label *fun, const std::list<bool> formals) {
   frame->name_ = fun;
   return frame;
 }
-/**
-  std::string prolog_;
-  InstrList *body_;
-  std::string epilog_;
- */
-
-void ProcEntryExit2(assem::InstrList &instr_list) {
-  auto returnSink = reg_manager->ReturnSink();
-  instr_list.Append(new assem::OperInstr("", nullptr, returnSink, nullptr));
-}
+///**
+//  std::string prolog_;
+//  InstrList *body_;
+//  std::string epilog_;
+// */
+//
+//void ProcEntryExit2(assem::InstrList &instr_list) {
+//  auto returnSink = reg_manager->ReturnSink();
+//  instr_list.Append(new assem::OperInstr("", nullptr, returnSink, nullptr));
+//}
 
 tree::Stm *ProcEntryExit1(frame::Frame *frame, tree::Stm *stm) {
-  auto formals = frame->Formals();
-  int i = 0;
-
-  auto temps = new temp::TempList(
-      {temp::TempFactory::NewTemp(), temp::TempFactory::NewTemp(),
-       temp::TempFactory::NewTemp(), temp::TempFactory::NewTemp(),
-       temp::TempFactory::NewTemp(), temp::TempFactory::NewTemp()});
-
-  tree::Stm *seqStm = new tree::ExpStm(new tree::ConstExp(0));
-
-  // save callee saved registers;
-  auto calleeSaves = reg_manager->CalleeSaves();
-  for (int i = 0; i < 6; ++i) {
-    seqStm = new tree::SeqStm(
-        seqStm, new tree::MoveStm(new tree::TempExp(temps->NthTemp(i)),
-                                  new tree::TempExp(calleeSaves->NthTemp(i))));
+  temp::TempList *callee_saves = reg_manager->CalleeSaves();
+  temp::TempList *temp_list = new temp::TempList();
+  tree::Stm *seq_stm = new tree::ExpStm(new tree::ConstExp(0));
+  for (int i = 0; i < 6; i++) {
+    temp_list->Append(temp::TempFactory::NewTemp());
   }
 
-//  std::cout << frame->name_->Name() << " " << formals.size() << std::endl;
+  // save callee-save registers
+  for (int i = 0; i < 6; i++) {
+    seq_stm = new tree::SeqStm(
+        seq_stm,
+        new tree::MoveStm(new tree::TempExp(temp_list->NthTemp(i)),
+                          new tree::TempExp(callee_saves->NthTemp(i))));
+  }
 
   // view shift
-  auto argRegs = reg_manager->ArgRegs();
-  auto fp = reg_manager->FramePointer();
-  auto acc_it = formals.begin();
-  for (; acc_it != formals.end(); ++acc_it) {
-    if (i >= 6)
+  temp::TempList *arg_regs = reg_manager->ArgRegs();
+  temp::Temp *fp = reg_manager->FramePointer();
+  std::list<Access *> formals = frame->Formals();
+  std::list<Access *>::iterator it = formals.begin();
+  int now = 0;
+  int word_size = reg_manager->WordSize();
+  for (; it != formals.end(); it++) {
+    if (now >= 6)
       break;
-    auto access = *acc_it;
-    auto reg = argRegs->NthTemp(i++);
-    seqStm = new tree::SeqStm(
-        seqStm, new tree::MoveStm(access->ToExp(new tree::TempExp(fp)),
-                                  new tree::TempExp(reg)));
+    Access *access = *it;
+    seq_stm = new tree::SeqStm(
+        seq_stm, new tree::MoveStm(access->ToExp(new tree::TempExp(fp)),
+                                   new tree::TempExp(arg_regs->NthTemp(now))));
+    now++;
+  }
+  now = 1;
+  for (; it != formals.end(); it++) {
+    Access *access = *it;
+    seq_stm = new tree::SeqStm(
+        seq_stm, new tree::MoveStm(access->ToExp(new tree::TempExp(fp)),
+                                   new tree::MemExp(new tree::BinopExp(
+                                       tree::PLUS_OP, new tree::TempExp(fp),
+                                       new tree::ConstExp(now * word_size)))));
+    now++;
   }
 
-  int spillNumber = formals.size() - 6;
-  int wordSize = reg_manager->WordSize();
-  int offset = wordSize;
-
-  for (int i = 0; i < spillNumber; ++i) {
-    auto access = *acc_it;
-    auto memExp = new tree::MemExp(new tree::BinopExp(
-        tree::PLUS_OP, new tree::TempExp(fp), new tree::ConstExp(offset)));
-    seqStm = new tree::SeqStm(
-        seqStm,
-        new tree::MoveStm(access->ToExp(new tree::TempExp(fp)), memExp));
-    offset += wordSize;
-    ++acc_it;
+  seq_stm = new tree::SeqStm(seq_stm, stm); // body
+  // restore callee-save registers
+  for (int i = 0; i < 6; i++) {
+    seq_stm = new tree::SeqStm(
+        seq_stm, new tree::MoveStm(new tree::TempExp(callee_saves->NthTemp(i)),
+                                   new tree::TempExp(temp_list->NthTemp(i))));
   }
+  return seq_stm;
+}
 
-  seqStm = new tree::SeqStm(seqStm, stm);
-
-  // restore callee saved registers;
-  for (int i = 0; i < 6; ++i) {
-    seqStm = new tree::SeqStm(
-        seqStm, new tree::MoveStm(new tree::TempExp(calleeSaves->NthTemp(i)),
-                                  new tree::TempExp(temps->NthTemp(i))));
-  }
-
-  return seqStm;
+assem::InstrList *ProcEntryExit2(assem::InstrList *body) {
+  body->Append(new assem::OperInstr("", new temp::TempList(),
+                                    reg_manager->ReturnSink(), nullptr));
+  return body;
 }
 
 assem::Proc *ProcEntryExit3(frame::Frame *frame, assem::InstrList *body) {
