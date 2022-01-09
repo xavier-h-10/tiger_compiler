@@ -126,23 +126,6 @@ tree::Stm *ProcEntryExit1(frame::Frame *frame, tree::Stm *stm) {
   return seqStm;
 }
 
-//assem::Proc *ProcEntryExit3(frame::Frame *frame, assem::InstrList *body) {
-//  char buf[256];
-//  std::string prolog;
-//  sprintf(buf, ".set %s_framesize, %d\n", frame->name_->Name().c_str(),
-//          frame->size());
-//  prolog = std::string(buf);
-//  sprintf(buf, "%s:\n", frame->name_->Name().c_str());
-//  prolog.append(std::string(buf));
-//  sprintf(buf, "subq $%d, %%rsp\n", frame->size());
-//  prolog.append(std::string(buf));
-//
-//  sprintf(buf, "addq $%d, %%rsp\n", frame->size());
-//  std::string epilog = std::string(buf);
-//  epilog.append("retq\n");
-//  return new assem::Proc(prolog, body, epilog);
-//}
-
 assem::Proc *ProcEntryExit3(frame::Frame *frame, assem::InstrList *body) {
   std::string prolog = frame->name_->Name() + ":\n";
   prolog = prolog + "subq $" + std::to_string(frame->size()) + ", %rsp\n";
