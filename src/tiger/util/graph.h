@@ -271,12 +271,15 @@ void Graph<T>::Show(FILE *out, NodeList<T> *p,
     fprintf(out, "\n");
   }
 }
+
 template <typename T> void Graph<T>::DeleteNode(Node<T> *n) {
-  for (auto succNode : n->succs_->node_list_) {
-    succNode->preds_->DeleteNode(n);
+  auto succ_list = n->succs_->node_list_;
+  for (auto succ : succ_list) {
+    succ->preds_->DeleteNode(n);
   }
-  for (auto predNode : n->preds_->node_list_) {
-    predNode->succs_->DeleteNode(n);
+  auto pred_list = n->preds_->node_list_;
+  for (auto pred : pred_list) {
+    pred->succs_->DeleteNode(n);
   }
   my_nodes_->DeleteNode(n);
 }
