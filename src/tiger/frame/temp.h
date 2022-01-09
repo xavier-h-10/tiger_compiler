@@ -125,7 +125,6 @@ public:
     }
   }
 
-  // use should free it manually.
   static TempList *Diff(TempList *one, TempList *another) {
     auto diff = new TempList({});
     auto oneList = one->GetList();

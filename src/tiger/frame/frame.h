@@ -66,17 +66,22 @@ public:
 
 protected:
   std::vector<temp::Temp *> regs_;
+
+public:
+  temp::TempList *registers;
+  temp::TempList *arg_regs;
+  temp::TempList *caller_saves;
+  temp::TempList *callee_saves;
+  temp::TempList *return_sink;
 };
 
 class Access {
 public:
-  /* TODO: Put your lab5 code here */
   virtual tree::Exp *ToExp(tree::Exp *framePtr) const = 0;
   virtual ~Access() = default;
 };
 
 class Frame {
-  /* TODO: Put your lab5 code here */
 public:
   temp::Label *name_;
   std::list<Access *> formals_;
@@ -91,8 +96,6 @@ public:
   inline std::list<Access *> Formals() const { return formals_; }
 
   virtual Access *AllocLocal(bool escape) = 0;
-
-  virtual tree::Stm *Sp2Fp() = 0;
 };
 
 /**

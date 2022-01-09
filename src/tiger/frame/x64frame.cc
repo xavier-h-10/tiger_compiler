@@ -31,12 +31,9 @@ class X64Frame : public Frame {
 public:
   Access *AllocLocal(bool escape) override;
 
-  tree::Stm *Sp2Fp() override;
-
   inline int frameSize() const override {
     return locals * reg_manager->WordSize();
   }
-  /// TODO: fix here
 };
 
 Access *X64Frame::AllocLocal(bool escape) {
@@ -47,12 +44,6 @@ Access *X64Frame::AllocLocal(bool escape) {
   return access;
 }
 
-tree::Stm *X64Frame::Sp2Fp() {
-  return new tree::MoveStm(new tree::TempExp(reg_manager->FramePointer()),
-                           new tree::TempExp(reg_manager->StackPointer()));
-}
-
-/* TODO: Put your lab5 code here */
 Frame *NewFrame(temp::Label *fun, const std::list<bool> formals) {
   Frame *frame = new X64Frame;
   int idx = 1;

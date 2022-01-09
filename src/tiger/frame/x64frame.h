@@ -9,13 +9,6 @@
 
 namespace frame {
 class X64RegManager : public RegManager {
-private:
-  temp::TempList *registers;
-  temp::TempList *argRegs;
-  temp::TempList *callerSaves;
-  temp::TempList *calleeSaves;
-  temp::TempList *returnSink;
-
 public:
   X64RegManager() {
     temp::Temp *rax = temp::TempFactory::NewTemp(0);
@@ -57,20 +50,11 @@ public:
 
     registers = new temp::TempList({rax, rbx, rcx, rdx, rsp, rbp, rsi, rdi, r8,
                                     r9, r10, r11, r12, r13, r14, r15});
-
-    // %rdi %rsi %rdx %rcx %r8 %r9
-    argRegs = new temp::TempList({rdi, rsi, rdx, rcx, r8, r9});
-
-    // rax, rdi, rsi, rdx, rcx, r8, r9, r10, r11
-    callerSaves =
-        new temp::TempList({rax, rdi, rsi, rdx, rcx, r8, r9, r10, r11});
-
-    // rbx, rbp, r12, r13, r14, r15
-    calleeSaves = new temp::TempList({rbx, rbp, r12, r13, r14, r15});
-
-    returnSink = new temp::TempList({rbx, rbp, r12, r13, r14, r15, rsp, rax});
+    arg_regs = new temp::TempList({rdi, rsi, rdx, rcx, r8, r9});
+    caller_saves =new temp::TempList({rax, rdi, rsi, rdx, rcx, r8, r9, r10, r11});
+    callee_saves = new temp::TempList({rbx, rbp, r12, r13, r14, r15});
+    return_sink = new temp::TempList({rbx, rbp, r12, r13, r14, r15, rsp, rax});
   }
-  /* TODO: Put your lab5 code here */
   temp::TempList *Registers() override { return registers; }
 
   /**
@@ -78,41 +62,45 @@ public:
    * NOTE: returned temp list must be in the order of calling convention
    * @return argument registers
    */
-  temp::TempList *ArgRegs() override { return argRegs; };
+  temp::TempList *ArgRegs() override { return arg_regs; };
 
   /**
    * Get caller-saved registers
    * NOTE: returned registers must be in the order of calling convention
    * @return caller-saved registers
    */
-  temp::TempList *CallerSaves() override { return callerSaves; };
+  temp::TempList *CallerSaves() override { return caller_saves; };
 
   /**
    * Get callee-saved registers
    * NOTE: returned registers must be in the order of calling convention
    * @return callee-saved registers
    */
-  temp::TempList *CalleeSaves() override { return calleeSaves; };
+  temp::TempList *CalleeSaves() override { return callee_saves; };
 
   /**
    * Get return-sink registers
    * @return return-sink registers
    */
-  temp::TempList *ReturnSink() override { return returnSink; };
+  temp::TempList *ReturnSink() override { return return_sink; };
+
+//  temp::TempList *ReturnSink() {
+//    temp::TempList *tmp_list = CalleeSaves();
+//    tmp_list->Append(StackPointer());
+//    tmp_list->Append(ReturnValue());
+//    return tmp_list;
+//  }
 
   /**
    * Get word size
    */
   int WordSize() { return 8; };
 
-  // %rbp
-  temp::Temp *FramePointer() override { return regs_[5]; };
+  temp::Temp *ReturnValue() override { return regs_[0]; };
 
-  // %rsp
   temp::Temp *StackPointer() override { return regs_[4]; };
 
-  // %rax
-  temp::Temp *ReturnValue() override { return regs_[0]; };
+  temp::Temp *FramePointer() override { return regs_[5]; };
 };
 
 } // namespace frame
