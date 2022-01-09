@@ -10,10 +10,11 @@ public:
 
   explicit InFrameAccess(int offset) : offset(offset) {}
 
+  // If acc is inFrame(k), the result is MEM(BINOP(PLUS, TEMP(fp), CONST(k)))
   tree::Exp *ToExp(tree::Exp *framePtr) const override {
-    auto offsetExp = new tree::ConstExp(offset);
-    auto addrExp = new tree::BinopExp(tree::PLUS_OP, framePtr, offsetExp);
-    return new tree::MemExp(addrExp);
+    tree::BinopExp *exp =
+        new tree::BinopExp(tree::PLUS_OP, framePtr, new tree::ConstExp(offset));
+    return new tree::MemExp(exp);
   }
 };
 
@@ -29,26 +30,29 @@ public:
 
 class X64Frame : public Frame {
 public:
-  Access *AllocLocal(bool escape) override;
+  Access *AllocLocal(bool escape) override {
+    Access *access;
+    if (escape) {
+      locals++;
+      access =
+          new InFrameAccess((-1) * locals * reg_manager->WordSize()); // think
+    } else {
+      access = new InRegAccess(temp::TempFactory::NewTemp());
+    }
+    return access;
+  }
 
-  inline int size() const override { return locals * reg_manager->WordSize(); }
+  inline int size() const override {
+    return locals * reg_manager->WordSize();
+  }
 };
 
-Access *X64Frame::AllocLocal(bool escape) {
-  Access *access = escape ? dynamic_cast<Access *>(new InFrameAccess(
-                                (-(++locals)) * reg_manager->WordSize()))
-                          : dynamic_cast<Access *>(
-                                new InRegAccess(temp::TempFactory::NewTemp()));
-  return access;
-}
-
-Frame *NewFrame(temp::Label *fun, const std::list<bool> formals) {
+Frame *NewFrame(temp::Label *label, const std::list<bool> formals) {
   Frame *frame = new X64Frame;
-  int idx = 1;
   for (bool escape : formals) {
     frame->Append(frame->AllocLocal(escape));
   }
-  frame->name_ = fun;
+  frame->name_ = label;
   return frame;
 }
 
@@ -71,7 +75,7 @@ tree::Stm *ProcEntryExit1(frame::Frame *frame, tree::Stm *stm) {
   // view shift
   temp::TempList *arg_regs = reg_manager->ArgRegs();
   temp::Temp *fp = reg_manager->FramePointer();
-  std::list<Access *> formals = frame->Formals();
+  std::list<Access *> formals = frame->GetFormals();
   std::list<Access *>::iterator it = formals.begin();
   int now = 0;
   int word_size = reg_manager->WordSize();

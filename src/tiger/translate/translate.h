@@ -29,25 +29,22 @@ public:
 };
 
 class Level {
-private:
-  Level(frame::Frame *frame_, Level *parent_)
-      : frame_(frame_), parent_(parent_){};
-
 public:
   frame::Frame *frame_;
   Level *parent_;
+  /* TODO: Put your lab5 code here */
+  Level(frame::Frame *frame_, Level *parent_)
+      : frame_(frame_), parent_(parent_){};
 
-  static Level *Outermost() {
-    static Level *outermost = nullptr;
-    if (outermost == nullptr) {
+  static Level *Outer() {
+    static Level *outer = nullptr;
+    if (outer == nullptr) {
       auto newFrame =
           frame::NewFrame(temp::LabelFactory::NamedLabel("tigermain"), {});
-      outermost = new Level(newFrame, nullptr);
+      outer = new Level(newFrame, nullptr);
     }
-    return outermost;
+    return outer;
   }
-
-  /* TODO: Put your lab5 code here */
 
   static Level *NewLevel(Level *parent, temp::Label *func,
                          std::list<bool> formals) {
@@ -63,8 +60,10 @@ public:
   ProgTr(std::unique_ptr<absyn::AbsynTree> absyn,
          std::unique_ptr<err::ErrorMsg> erromsg)
       : absyn_tree_(std::move(absyn)), errormsg_(std::move(erromsg)),
-        main_level_(Level::Outermost()), tenv_(std::make_unique<env::TEnv>()),
-        venv_(std::make_unique<env::VEnv>()) {}
+        main_level_(Level::Outer()), tenv_(std::make_unique<env::TEnv>()),
+        venv_(std::make_unique<env::VEnv>()) {
+    //    std::cout << "ProgTr::ProgTr called" << std::endl;
+  }
   /**
    * Translate IR tree
    */
@@ -81,7 +80,6 @@ public:
 private:
   std::unique_ptr<absyn::AbsynTree> absyn_tree_;
   std::unique_ptr<err::ErrorMsg> errormsg_;
-  std::unique_ptr<frame::RegManager> reg_manager;
   std::unique_ptr<Level> main_level_;
   std::unique_ptr<env::TEnv> tenv_;
   std::unique_ptr<env::VEnv> venv_;
@@ -91,9 +89,8 @@ private:
   void FillBaseTEnv();
 };
 
-tree::Exp *FramePtr(Level *level, Level *acc_level,
+tree::Exp *FramePtr(Level *level, Level *access_level,
                     frame::RegManager *reg_manager);
-
 } // namespace tr
 
 #endif

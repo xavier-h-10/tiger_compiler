@@ -37,10 +37,9 @@ Temp *TempFactory::NewTemp() {
 }
 
 Temp *TempFactory::NewTemp(int id) {
-  Temp *p = new Temp(id);
-  return p;
+  Temp *res = new Temp(id);
+  return res;
 }
-
 
 int Temp::Int() const { return num_; }
 
@@ -65,7 +64,8 @@ void Map::Enter(Temp *t, std::string *s) {
   tab_->Enter(t, s);
 }
 
-void Map::Set(Temp *t, std::string *s){
+void Map::Set(Temp *t, std::string *s) {
+  assert(tab_);
   tab_->Set(t, s);
 }
 

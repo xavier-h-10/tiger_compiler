@@ -76,89 +76,45 @@ public:
   void Append(Temp *t) { temp_list_.push_back(t); }
   [[nodiscard]] Temp *NthTemp(int i) const;
   [[nodiscard]] const std::list<Temp *> &GetList() const { return temp_list_; }
-  void Union(TempList *another) {
-    auto anotherList = another->GetList();
-    for (auto anotherTemp : anotherList) {
-      auto pos = std::find(temp_list_.begin(), temp_list_.end(), anotherTemp);
+  void Union(TempList *p) {
+    auto p_list = p->GetList();
+    for (auto temp : p_list) {
+      auto pos = std::find(temp_list_.begin(), temp_list_.end(), temp);
       if (pos == temp_list_.end()) {
-        temp_list_.push_back(anotherTemp);
+        temp_list_.push_back(temp);
       }
     }
   }
 
   inline void Clear() { temp_list_.clear(); }
 
-  void Diff(TempList *another) {
-    auto anotherList = another->GetList();
-    for (auto anotherTemp : anotherList) {
-      auto pos = std::find(temp_list_.begin(), temp_list_.end(), anotherTemp);
+  void Diff(TempList *p) {
+    auto p_list = p->GetList();
+    for (auto temp : p_list) {
+      auto pos = std::find(temp_list_.begin(), temp_list_.end(), temp);
       if (pos != temp_list_.end()) {
         temp_list_.erase(pos);
       }
     }
   }
 
-  void Assign(TempList *another) {
-    temp_list_.clear();
-    auto anotherList = another->GetList();
-    for (auto anotherTemp : anotherList) {
-      temp_list_.push_back(anotherTemp);
-    }
-  }
-
-  bool Contain(Temp *t) {
-    for (auto temp : temp_list_) {
-      if (temp == t)
+  bool Contain(Temp *temp) {
+    for (auto now : temp_list_) {
+      if (temp == now)
         return true;
     }
     return false;
   }
 
-  void Replace(Temp *_old, Temp *_new) {
-    auto iter = temp_list_.begin();
-    for (; iter != temp_list_.end(); ++iter) {
-      if (*iter == _old) {
-        *iter = _new;
-        std::cout << "replace " << *temp::Map::Name()->Look(_old) << " to "
-                  << *temp::Map::Name()->Look(*iter) << std::endl;
+  void Replace(Temp *old_temp, Temp *new_temp) {
+    for (auto it = temp_list_.begin(); it != temp_list_.end(); it++) {
+      std::cout << "replace "
+                << "old=" << *temp::Map::Name()->Look(old_temp)
+                << " new=" << *temp::Map::Name()->Look(new_temp) << std::endl;
+      if (*it == old_temp) {
+        *it = new_temp;
       }
     }
-  }
-
-  static TempList *Diff(TempList *one, TempList *another) {
-    auto diff = new TempList({});
-    auto oneList = one->GetList();
-    auto anotherList = another->GetList();
-    for (auto oneTemp : oneList) {
-      bool exist = false;
-      for (auto anotherTemp : anotherList) {
-        if (anotherTemp == oneTemp) {
-          exist = true;
-          break;
-        }
-      }
-      if (!exist) {
-        diff->Append(oneTemp);
-      }
-    }
-    return diff;
-  }
-
-  static TempList *Union(TempList *one, TempList *another) {
-    auto diff = new TempList({});
-    auto oneList = one->GetList();
-    auto anotherList = another->GetList();
-    TempList *ret = new temp::TempList({});
-    for (auto oneTemp : oneList)
-      ret->Append(oneTemp);
-
-    for (auto anotherTemp : anotherList) {
-      auto pos = std::find(oneList.begin(), oneList.end(), anotherTemp);
-      if (pos == oneList.end()) {
-        ret->Append(anotherTemp);
-      }
-    }
-    return ret;
   }
 
 private:

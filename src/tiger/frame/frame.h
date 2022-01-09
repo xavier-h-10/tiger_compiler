@@ -62,26 +62,35 @@ public:
 
   [[nodiscard]] virtual temp::Temp *ReturnValue() = 0;
 
+  [[nodiscard]] virtual temp::Temp *rax() = 0;
+
+  [[nodiscard]] virtual temp::Temp *rdx() = 0;
+
   temp::Map *temp_map_;
 
 protected:
   std::vector<temp::Temp *> regs_;
 
-public:
-  temp::TempList *registers;
-  temp::TempList *arg_regs;
-  temp::TempList *caller_saves;
-  temp::TempList *callee_saves;
-  temp::TempList *return_sink;
+  //public:
+  //  temp::Temp *rax, *rcx, *rdx, *rdi, *rsi, *r8, *r9, *r10, *r11;
+  //  temp::Temp *rbx, *r12, *r13, *r14, *r15;
+  //  temp::Temp *rsp, *rbp;
+  //  temp::TempList *registers, *arg_regs, *caller_saves, *callee_saves;
+  //
+  //  std::vector<std::string> reg_names_;
+
 };
 
 class Access {
 public:
+  // If acc is inReg, the result is simply the register
+  // If acc is inFrame(k), the result is MEM(BINOP(PLUS, TEMP(fp), CONST(k)))
   virtual tree::Exp *ToExp(tree::Exp *framePtr) const = 0;
   virtual ~Access() = default;
 };
 
 class Frame {
+  /* TODO: Put your lab5 code here */
 public:
   temp::Label *name_;
   std::list<Access *> formals_;
@@ -93,7 +102,7 @@ public:
 
   inline void Append(Access *access) { formals_.push_back(access); }
 
-  inline std::list<Access *> Formals() const { return formals_; }
+  inline std::list<Access *> GetFormals() const { return formals_; }
 
   virtual Access *AllocLocal(bool escape) = 0;
 };
@@ -151,9 +160,10 @@ private:
 };
 
 tree::Stm *ProcEntryExit1(frame::Frame *frame, tree::Stm *stm);
-void ProcEntryExit2(assem::InstrList &body);
+void ProcEntryExit2(assem::InstrList &instr_list);
 assem::Proc *ProcEntryExit3(frame::Frame *frame, assem::InstrList *body);
-Frame *NewFrame(temp::Label *fun, const std::list<bool> formals);
+Frame *NewFrame(temp::Label *label, const std::list<bool> formals);
+
 } // namespace frame
 
 #endif
