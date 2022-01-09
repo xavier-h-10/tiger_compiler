@@ -89,7 +89,7 @@ public:
   int locals = 0;
 
 public:
-  virtual int frameSize() const = 0;
+  virtual int size() const = 0;
 
   inline void Append(Access *access) { formals_.push_back(access); }
 

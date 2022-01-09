@@ -29,21 +29,21 @@ public:
     temp::Temp *r15 = temp::TempFactory::NewTemp(15);
 
     temp::Map::Name()->Enter(rax, new std::string("%rax"));
-    temp::Map::Name()->Enter(rbx, new std::string("%rbx"));
     temp::Map::Name()->Enter(rcx, new std::string("%rcx"));
     temp::Map::Name()->Enter(rdx, new std::string("%rdx"));
-    temp::Map::Name()->Enter(rsp, new std::string("%rsp"));
-    temp::Map::Name()->Enter(rbp, new std::string("%rbp"));
-    temp::Map::Name()->Enter(rsi, new std::string("%rsi"));
     temp::Map::Name()->Enter(rdi, new std::string("%rdi"));
+    temp::Map::Name()->Enter(rsi, new std::string("%rsi"));
     temp::Map::Name()->Enter(r8, new std::string("%r8"));
     temp::Map::Name()->Enter(r9, new std::string("%r9"));
     temp::Map::Name()->Enter(r10, new std::string("%r10"));
     temp::Map::Name()->Enter(r11, new std::string("%r11"));
+    temp::Map::Name()->Enter(rbx, new std::string("%rbx"));
     temp::Map::Name()->Enter(r12, new std::string("%r12"));
     temp::Map::Name()->Enter(r13, new std::string("%r13"));
     temp::Map::Name()->Enter(r14, new std::string("%r14"));
     temp::Map::Name()->Enter(r15, new std::string("%r15"));
+    temp::Map::Name()->Enter(rbp, new std::string("%rbp"));
+    temp::Map::Name()->Enter(rsp, new std::string("%rsp"));
 
     regs_ = {rax, rbx, rcx, rdx, rsp, rbp, rsi, rdi,
              r8,  r9,  r10, r11, r12, r13, r14, r15};
@@ -55,52 +55,31 @@ public:
     callee_saves = new temp::TempList({rbx, rbp, r12, r13, r14, r15});
     return_sink = new temp::TempList({rbx, rbp, r12, r13, r14, r15, rsp, rax});
   }
-  temp::TempList *Registers() override { return registers; }
 
-  /**
-   * Get registers which can be used to hold arguments
-   * NOTE: returned temp list must be in the order of calling convention
-   * @return argument registers
-   */
-  temp::TempList *ArgRegs() override { return arg_regs; };
+  [[nodiscard]] temp::TempList *Registers() override { return registers; }
 
-  /**
-   * Get caller-saved registers
-   * NOTE: returned registers must be in the order of calling convention
-   * @return caller-saved registers
-   */
-  temp::TempList *CallerSaves() override { return caller_saves; };
+  [[nodiscard]] temp::TempList *ArgRegs() override { return arg_regs; };
 
-  /**
-   * Get callee-saved registers
-   * NOTE: returned registers must be in the order of calling convention
-   * @return callee-saved registers
-   */
-  temp::TempList *CalleeSaves() override { return callee_saves; };
+  [[nodiscard]] temp::TempList *CallerSaves() override { return caller_saves; };
 
-  /**
-   * Get return-sink registers
-   * @return return-sink registers
-   */
-  temp::TempList *ReturnSink() override { return return_sink; };
+  [[nodiscard]] temp::TempList *CalleeSaves() override { return callee_saves; };
 
-//  temp::TempList *ReturnSink() {
+  [[nodiscard]] temp::TempList *ReturnSink() override { return return_sink; };
+
+//  [[nodiscard]] temp::TempList *ReturnSink() {
 //    temp::TempList *tmp_list = CalleeSaves();
 //    tmp_list->Append(StackPointer());
 //    tmp_list->Append(ReturnValue());
 //    return tmp_list;
 //  }
+  
+  [[nodiscard]] int WordSize() { return 8; };
 
-  /**
-   * Get word size
-   */
-  int WordSize() { return 8; };
+  [[nodiscard]] temp::Temp *ReturnValue() override { return regs_[0]; };
 
-  temp::Temp *ReturnValue() override { return regs_[0]; };
+  [[nodiscard]] temp::Temp *StackPointer() override { return regs_[4]; };
 
-  temp::Temp *StackPointer() override { return regs_[4]; };
-
-  temp::Temp *FramePointer() override { return regs_[5]; };
+  [[nodiscard]] temp::Temp *FramePointer() override { return regs_[5]; };
 };
 
 } // namespace frame

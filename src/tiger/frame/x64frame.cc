@@ -31,7 +31,7 @@ class X64Frame : public Frame {
 public:
   Access *AllocLocal(bool escape) override;
 
-  inline int frameSize() const override {
+  inline int size() const override {
     return locals * reg_manager->WordSize();
   }
 };
@@ -58,22 +58,6 @@ Frame *NewFrame(temp::Label *fun, const std::list<bool> formals) {
   InstrList *body_;
   std::string epilog_;
  */
-assem::Proc *ProcEntryExit3(frame::Frame *frame, assem::InstrList *body) {
-  char buf[256];
-  std::string prolog;
-    sprintf(buf, ".set %s_framesize, %d\n", frame->name_->Name().c_str(),
-            frame->frameSize());
-    prolog = std::string(buf);
-  sprintf(buf, "%s:\n", frame->name_->Name().c_str());
-  prolog.append(std::string(buf));
-  sprintf(buf, "subq $%d, %%rsp\n", frame->frameSize());
-  prolog.append(std::string(buf));
-
-  sprintf(buf, "addq $%d, %%rsp\n", frame->frameSize());
-  std::string epilog = std::string(buf);
-  epilog.append("retq\n");
-  return new assem::Proc(prolog, body, epilog);
-}
 
 void ProcEntryExit2(assem::InstrList &instr_list) {
   auto returnSink = reg_manager->ReturnSink();
@@ -140,6 +124,32 @@ tree::Stm *ProcEntryExit1(frame::Frame *frame, tree::Stm *stm) {
   }
 
   return seqStm;
+}
+
+//assem::Proc *ProcEntryExit3(frame::Frame *frame, assem::InstrList *body) {
+//  char buf[256];
+//  std::string prolog;
+//  sprintf(buf, ".set %s_framesize, %d\n", frame->name_->Name().c_str(),
+//          frame->size());
+//  prolog = std::string(buf);
+//  sprintf(buf, "%s:\n", frame->name_->Name().c_str());
+//  prolog.append(std::string(buf));
+//  sprintf(buf, "subq $%d, %%rsp\n", frame->size());
+//  prolog.append(std::string(buf));
+//
+//  sprintf(buf, "addq $%d, %%rsp\n", frame->size());
+//  std::string epilog = std::string(buf);
+//  epilog.append("retq\n");
+//  return new assem::Proc(prolog, body, epilog);
+//}
+
+assem::Proc *ProcEntryExit3(frame::Frame *frame, assem::InstrList *body) {
+  std::string prolog = frame->name_->Name() + ":\n";
+  prolog = prolog + "subq $" + std::to_string(frame->size()) + ", %rsp\n";
+
+  std::string epilog = "addq $" + std::to_string(frame->size()) + ", %rsp\n";
+  epilog = epilog + "retq\n";
+  return new assem::Proc(prolog, body, epilog);
 }
 
 } // namespace frame
